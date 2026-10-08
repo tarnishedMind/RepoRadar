@@ -1,5 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { searchRepositories } from "@/lib/github";
 import { getQueryClient } from "@/lib/get-query-client";
@@ -30,6 +31,10 @@ export default function SearchPage({ searchParams }: Props) {
  * cache and takes over for further pages and new queries.
  */
 async function PrefetchedSearch({ searchParams }: Pick<Props, "searchParams">) {
+  // Search results are per-request: opt this subtree out of prerendering.
+  // (TanStack Query stamps cache entries with Date.now(), which Next would
+  // otherwise flag while prerendering.)
+  await connection();
   const params = parseSearchParams(await searchParams);
   const queryClient = getQueryClient();
 

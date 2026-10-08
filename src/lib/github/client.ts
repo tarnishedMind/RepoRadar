@@ -51,14 +51,20 @@ async function request(path: string, options: GitHubFetchOptions) {
 
   if (res.status === 404) return null;
 
-  if (
-    (res.status === 403 || res.status === 429) &&
-    res.headers.get("x-ratelimit-remaining") === "0"
-  ) {
+  if (res.status === 403 || res.status === 429) {
+    // Primary limit: remaining hits 0. Secondary limit (e.g. bursts of search
+    // requests): a Retry-After header instead.
     const reset = res.headers.get("x-ratelimit-reset");
-    throw new GitHubRateLimitError(
-      reset ? new Date(Number(reset) * 1000) : null,
-    );
+    const retryAfter = res.headers.get("retry-after");
+    if (res.headers.get("x-ratelimit-remaining") === "0" || retryAfter) {
+      throw new GitHubRateLimitError(
+        retryAfter
+          ? new Date(Date.now() + Number(retryAfter) * 1000)
+          : reset
+            ? new Date(Number(reset) * 1000)
+            : null,
+      );
+    }
   }
 
   if (!res.ok) {
