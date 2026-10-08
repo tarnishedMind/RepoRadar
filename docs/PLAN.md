@@ -34,7 +34,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - `/[owner]/[repo]` and `/u/[login]` as Server Components with `generateMetadata`
 - `loading.tsx`, `error.tsx`, `not-found.tsx`; streamed sections with Suspense
 
-### M2 — Trending & leaderboards (ISR)
+### M2 — Trending & leaderboards (ISR) ✅
 - Trending page using the search API (`created:>date sort:stars`) with time-based revalidation
 - Language leaderboards with `cacheTag` and `POST /api/revalidate` for on-demand revalidation
 - `generateStaticParams` for popular languages

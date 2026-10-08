@@ -56,7 +56,9 @@ async function request(path: string, options: GitHubFetchOptions) {
     res.headers.get("x-ratelimit-remaining") === "0"
   ) {
     const reset = res.headers.get("x-ratelimit-reset");
-    throw new GitHubRateLimitError(reset ? new Date(Number(reset) * 1000) : null);
+    throw new GitHubRateLimitError(
+      reset ? new Date(Number(reset) * 1000) : null,
+    );
   }
 
   if (!res.ok) {

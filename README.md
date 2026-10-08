@@ -32,3 +32,18 @@ Open http://localhost:3000.
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript check |
+
+## On-demand revalidation
+
+Trending pages regenerate hourly and leaderboards daily. To refresh them immediately,
+set `REVALIDATE_SECRET` and call the route handler with one or more cache tags:
+
+```bash
+curl -X POST http://localhost:3000/api/revalidate \
+  -H "Authorization: Bearer $REVALIDATE_SECRET" \
+  -d '{"tags":["trending","leaderboard:rust","repo:vercel/next.js"]}'
+```
+
+Tags: `trending`, `trending:<daily|weekly|monthly>`, `leaderboard`, `leaderboard:<lang>`,
+`repo:<owner>/<name>`, `user:<login>`. Stale pages keep being served while the fresh
+version regenerates in the background.

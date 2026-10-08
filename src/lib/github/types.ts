@@ -63,3 +63,9 @@ export interface GitHubContributor {
 
 /** Language name → bytes of code, as returned by `/repos/{owner}/{repo}/languages`. */
 export type GitHubLanguages = Record<string, number>;
+
+export interface GitHubSearchResult<T> {
+  total_count: number;
+  incomplete_results: boolean;
+  items: T[];
+}
