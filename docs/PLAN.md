@@ -44,7 +44,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - `useInfiniteQuery` with IntersectionObserver infinite scroll, URL-synced query/filters
 - Prefetch repo details on card hover
 
-### M4 — Repo preview modal
+### M4 — Repo preview modal ✅
 - `@modal` parallel slot + `(.)` intercepting route for repo preview
 - `default.tsx` fallbacks, close on back navigation
 

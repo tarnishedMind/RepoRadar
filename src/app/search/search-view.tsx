@@ -2,7 +2,7 @@
 
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "@/components/skeleton";
 import { useInView } from "@/hooks/use-in-view";
@@ -27,8 +27,23 @@ function updateUrl(patch: Partial<RepoSearchParams>) {
   window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
 }
 
+/**
+ * While the repo preview modal is open the URL is /owner/repo, which has no
+ * search params. Keep using the last /search params so the results underneath
+ * the modal stay put.
+ */
+function useStickySearchParams() {
+  const pathname = usePathname();
+  const current = useSearchParams().toString();
+  const [sticky, setSticky] = useState(current);
+  if (pathname === "/search" && current !== sticky) setSticky(current);
+  return parseSearchParams(
+    new URLSearchParams(pathname === "/search" ? current : sticky),
+  );
+}
+
 export function SearchView() {
-  const params = parseSearchParams(useSearchParams());
+  const params = useStickySearchParams();
   const [input, setInput] = useState(params.q);
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
 
