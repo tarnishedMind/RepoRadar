@@ -7,7 +7,8 @@ on-demand revalidation, streaming with Suspense, parallel and intercepting route
 Actions, proxy (middleware), `generateMetadata` and OG images, plus TanStack Query v5 for
 infinite scroll, hover prefetching, server-to-client cache hydration and optimistic updates.
 
-See [docs/PLAN.md](docs/PLAN.md) for the feature map and milestones.
+See [docs/PLAN.md](docs/PLAN.md) for the feature map and milestones, and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a guided tour of how it all works.
 
 ## Stack
 
