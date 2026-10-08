@@ -24,12 +24,12 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 
 ## Milestones
 
-### M0 — Foundation ✅ (this commit)
+### M0 — Foundation ✅
 - Scaffold Next.js 16 + TypeScript + Tailwind, pnpm, `.nvmrc` (Node 22)
 - TanStack Query provider (`QueryClient` per request on server, singleton in browser), devtools
 - This plan
 
-### M1 — GitHub data layer & repo/user pages
+### M1 — GitHub data layer & repo/user pages ✅
 - Typed GitHub client (`src/lib/github`), env config, error mapping (404, rate limit)
 - `/[owner]/[repo]` and `/u/[login]` as Server Components with `generateMetadata`
 - `loading.tsx`, `error.tsx`, `not-found.tsx`; streamed sections with Suspense
