@@ -4,6 +4,10 @@ import { cacheLife, cacheTag } from "next/cache";
 import { githubJson, githubText } from "./client";
 import { LANGUAGES, TRENDING_RANGES } from "./catalog";
 import type { LanguageSlug, TrendingRange } from "./catalog";
+import {
+  SEARCH_PER_PAGE,
+  type RepoSearchParams,
+} from "@/lib/queries/search-params";
 import type {
   GitHubContributor,
   GitHubLanguages,
@@ -31,10 +35,15 @@ export const tags = {
     lang ? `leaderboard:${lang}` : "leaderboard",
 };
 
-async function searchRepos(q: string, perPage = 30) {
+async function searchRepos(
+  q: string,
+  { perPage = 30, page = 1, sort = "stars" }: { perPage?: number; page?: number; sort?: string } = {},
+) {
+  const searchParams: Record<string, string | number> = { q, per_page: perPage, page };
+  if (sort !== "best-match") Object.assign(searchParams, { sort, order: "desc" });
   const result = await githubJson<GitHubSearchResult<GitHubRepo>>(
     "/search/repositories",
-    { searchParams: { q, sort: "stars", order: "desc", per_page: perPage } },
+    { searchParams },
   );
   return result ?? { total_count: 0, incomplete_results: false, items: [] };
 }
@@ -63,7 +72,7 @@ export async function getLanguageLeaderboard(lang: LanguageSlug) {
 
   const { items, total_count } = await searchRepos(
     `language:"${LANGUAGES[lang]}"`,
-    50,
+    { perPage: 50 },
   );
   return { repos: items, totalCount: total_count, fetchedAt: new Date().toISOString() };
 }
@@ -116,4 +125,18 @@ export async function getUserRepos(login: string) {
   return githubJson<GitHubRepo[]>(`/users/${login}/repos`, {
     searchParams: { sort: "pushed", per_page: 100, type: "owner" },
   });
+}
+
+/** One page of free-text repository search, cached briefly to absorb repeat queries. */
+export async function searchRepositories(params: RepoSearchParams, page: number) {
+  "use cache";
+  cacheLife("minutes");
+
+  const q = params.lang ? `${params.q} language:"${LANGUAGES[params.lang]}"` : params.q;
+  const { items, total_count } = await searchRepos(q, {
+    page,
+    perPage: SEARCH_PER_PAGE,
+    sort: params.sort,
+  });
+  return { items, totalCount: total_count, page };
 }

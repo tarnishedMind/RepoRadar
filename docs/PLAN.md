@@ -39,7 +39,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - Language leaderboards with `cacheTag` and `POST /api/revalidate` for on-demand revalidation
 - `generateStaticParams` for popular languages
 
-### M3 — Search with TanStack Query
+### M3 — Search with TanStack Query ✅
 - Server-prefetched first page + `HydrationBoundary`
 - `useInfiniteQuery` with IntersectionObserver infinite scroll, URL-synced query/filters
 - Prefetch repo details on card hover

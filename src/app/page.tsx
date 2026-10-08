@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 
 const EXAMPLES = [
@@ -16,6 +17,17 @@ export default function Home() {
         Explore GitHub repositories, developers and what&apos;s trending. Built
         with the Next.js App Router and TanStack Query.
       </p>
+      {/* next/form: a GET form that navigates client-side and prefetches /search. */}
+      <Form action="/search" className="flex max-w-xl gap-2">
+        <input
+          name="q"
+          placeholder="Search repositories…"
+          className="flex-1 rounded-md border border-zinc-300 bg-transparent px-3 py-2 outline-none focus:border-zinc-500 dark:border-zinc-700"
+        />
+        <button className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900">
+          Search
+        </button>
+      </Form>
       <div className="flex flex-col gap-3">
         <span className="text-sm text-zinc-500">Try one of these:</span>
         <ul className="flex flex-wrap gap-2">
