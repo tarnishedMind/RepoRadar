@@ -25,6 +25,7 @@ export const queryKeys = {
   search: (params: RepoSearchParams) => ["search", params] as const,
   repo: (owner: string, repo: string) =>
     ["repo", owner.toLowerCase(), repo.toLowerCase()] as const,
+  watchlist: ["watchlist"] as const,
 };
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -64,5 +65,15 @@ export function repoQueryOptions(owner: string, repo: string) {
         signal,
       ),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Full names ("owner/repo") on the user's watchlist, newest first. */
+export function watchlistQueryOptions() {
+  return queryOptions({
+    queryKey: queryKeys.watchlist,
+    queryFn: ({ signal }) => getJson<string[]>("/api/watchlist", signal),
+    // Only this browser changes it, through mutations that update the cache.
+    staleTime: Infinity,
   });
 }

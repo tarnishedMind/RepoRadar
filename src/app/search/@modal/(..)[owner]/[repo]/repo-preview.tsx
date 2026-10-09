@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-que
 import Image from "next/image";
 import { Skeleton } from "@/components/skeleton";
 import { Stat } from "@/components/stat";
+import { WatchButton } from "@/components/watch-button";
 import { formatCount, formatDate } from "@/lib/format";
 import type { GitHubRepo } from "@/lib/github/types";
 import { repoQueryOptions, type SearchPage } from "@/lib/queries";
@@ -73,6 +74,7 @@ export function RepoPreview({ owner, repo }: { owner: string; repo: string }) {
         >
           Open full page
         </a>
+        <WatchButton fullName={data.full_name} />
         <a href={data.html_url} target="_blank" rel="noreferrer" className="underline">
           View on GitHub
         </a>

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/skeleton";
 import { Stat } from "@/components/stat";
+import { WatchButton } from "@/components/watch-button";
 import { formatCount, formatDate } from "@/lib/format";
 import { getRepo } from "@/lib/github";
 import { Contributors, ContributorsSkeleton } from "./contributors";
@@ -112,7 +113,8 @@ async function RepoView({ params }: Pick<Props, "params">) {
           <Stat label="Last push" value={formatDate(data.pushed_at)} />
         </div>
 
-        <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <WatchButton fullName={data.full_name} />
           <a href={data.html_url} className="underline" target="_blank" rel="noreferrer">
             View on GitHub
           </a>

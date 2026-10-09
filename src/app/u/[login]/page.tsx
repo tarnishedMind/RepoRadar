@@ -31,14 +31,20 @@ export default async function UserPage({ params }: Props) {
   const { login } = await params;
 
   // Start both requests at once instead of waterfalling.
-  const [user, repos] = await Promise.all([getUser(login), getUserRepos(login)]);
+  const [user, repos] = await Promise.all([
+    getUser(login),
+    getUserRepos(login),
+  ]);
   if (!user) notFound();
 
   const topRepos = (repos ?? [])
     .filter((r) => !r.fork)
     .sort((a, b) => b.stargazers_count - a.stargazers_count)
     .slice(0, 12);
-  const totalStars = (repos ?? []).reduce((sum, r) => sum + r.stargazers_count, 0);
+  const totalStars = (repos ?? []).reduce(
+    (sum, r) => sum + r.stargazers_count,
+    0,
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-10">
@@ -55,17 +61,26 @@ export default async function UserPage({ params }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight">
             {user.name ?? user.login}
             {user.name && (
-              <span className="ml-2 font-normal text-zinc-500">@{user.login}</span>
+              <span className="ml-2 font-normal text-zinc-500">
+                @{user.login}
+              </span>
             )}
           </h1>
           {user.bio && (
-            <p className="max-w-2xl text-zinc-600 dark:text-zinc-400">{user.bio}</p>
+            <p className="max-w-2xl text-zinc-600 dark:text-zinc-400">
+              {user.bio}
+            </p>
           )}
           <p className="flex flex-wrap gap-x-4 text-sm text-zinc-500">
             {user.location && <span>{user.location}</span>}
             {user.company && <span>{user.company}</span>}
             <span>Joined {formatDate(user.created_at)}</span>
-            <a href={user.html_url} className="underline" target="_blank" rel="noreferrer">
+            <a
+              href={user.html_url}
+              className="underline"
+              target="_blank"
+              rel="noreferrer"
+            >
               GitHub
             </a>
           </p>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WatchlistNavLink } from "./watchlist-nav-link";
 
 const NAV = [
   { href: "/search", label: "Search" },
@@ -22,6 +23,7 @@ export function SiteHeader() {
             {item.label}
           </Link>
         ))}
+        <WatchlistNavLink />
       </nav>
     </header>
   );

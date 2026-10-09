@@ -48,7 +48,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - `@modal` parallel slot + `(.)` intercepting route for repo preview
 - `default.tsx` fallbacks, close on back navigation
 
-### M5 — Watchlist, Server Actions & optimistic UI
+### M5 — Watchlist, Server Actions & optimistic UI ✅
 - Watchlist stored in a cookie (no auth needed), mutated via Server Actions
 - Optimistic star/watch toggles with TanStack `useMutation` (`onMutate` / rollback) and `useOptimistic`
 

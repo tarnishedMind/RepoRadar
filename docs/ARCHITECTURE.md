@@ -1,6 +1,6 @@
 # RepoRadar architecture: Next.js for SPA developers
 
-This guide explains everything built in milestones M0 to M4, written for someone who
+This guide explains everything built in milestones M0 to M5, written for someone who
 knows single-page apps (React + a router + `useEffect` fetching) but is new to the
 Next.js App Router. Each section starts with the SPA habit, then shows what Next.js
 does instead, and where to see it in this repo.
@@ -21,9 +21,10 @@ does instead, and where to see it in this repo.
 10. [TanStack Query on top of Server Components](#10-tanstack-query-on-top-of-server-components)
 11. [Navigation: soft, hard, and preserved pages](#11-navigation-soft-hard-and-preserved-pages)
 12. [Parallel and intercepting routes: the preview modal](#12-parallel-and-intercepting-routes-the-preview-modal)
-13. [Metadata](#13-metadata)
-14. [Reading the build output](#14-reading-the-build-output)
-15. [Cheat sheet: SPA habit → Next.js equivalent](#15-cheat-sheet-spa-habit--nextjs-equivalent)
+13. [Server Actions and optimistic updates: the watchlist](#13-server-actions-and-optimistic-updates-the-watchlist)
+14. [Metadata](#14-metadata)
+15. [Reading the build output](#15-reading-the-build-output)
+16. [Cheat sheet: SPA habit → Next.js equivalent](#16-cheat-sheet-spa-habit--nextjs-equivalent)
 
 ---
 
@@ -88,10 +89,13 @@ flowchart TD
   root --> search["search/<br/>layout.tsx · page.tsx<br/>→ /search?q=…"]
   search --> modal["@modal/ (parallel slot, not a URL)<br/>default.tsx · page.tsx"]
   modal --> intercept["(..)[owner]/[repo]/page.tsx<br/>intercepts /owner/repo"]
+  root --> watch["watchlist/<br/>page.tsx<br/>→ /watchlist"]
+  root --> actions["actions/watchlist.ts<br/>(Server Actions, not a route)"]
   root --> api["api/ (Route Handlers, JSON)"]
   api --> apiSearch["search/route.ts<br/>GET /api/search"]
   api --> apiRepo["repos/[owner]/[repo]/route.ts<br/>GET /api/repos/…"]
   api --> apiReval["revalidate/route.ts<br/>POST /api/revalidate"]
+  api --> apiWatch["watchlist/route.ts<br/>GET /api/watchlist"]
 ```
 
 Folder naming conventions used here:
@@ -192,7 +196,10 @@ interactivity to small client leaves.**
 | `components/repo-card.tsx`, `stat.tsx`, `site-header.tsx`, `updated-at.tsx` | `search/search-view.tsx` (input, infinite scroll) |
 | `search/page.tsx` (prefetches data) | `search/search-result-card.tsx` (hover prefetch) |
 | `@modal/(..)[owner]/[repo]/page.tsx` | `components/modal.tsx` (`<dialog>`, router.back) |
-| | `@modal/…/repo-preview.tsx` (useQuery) |
+| `watchlist/page.tsx` (reads the cookie) | `@modal/…/repo-preview.tsx` (useQuery) |
+| | `components/watch-button.tsx` (useMutation) |
+| | `components/watchlist-nav-link.tsx` (header count) |
+| | `watchlist/watchlist-items.tsx` (useOptimistic + form action) |
 
 Server Components can render Client Components and pass them props (which must be
 serializable) or even other Server Components as `children`. That is how the root
@@ -383,6 +390,10 @@ pages. This app has three:
 | `GET /api/search` | `SearchView` infinite scroll | Browser code can't hold the GitHub token, so it asks our server |
 | `GET /api/repos/[owner]/[repo]` | hover prefetch, preview modal | Same reason |
 | `POST /api/revalidate` | you, cron jobs, webhooks | Clears cache by tag; protected by `REVALIDATE_SECRET` |
+| `GET /api/watchlist` | `WatchButton`, header count | The watchlist cookie is `httpOnly`, so browser JS can't read it directly |
+
+For *writes* from the browser this app uses Server Actions instead of Route Handlers
+(section 13).
 
 Server Components don't need these endpoints. They call `src/lib/github` directly.
 Route Handlers are only for code running in the browser or for outside callers.
@@ -496,7 +507,128 @@ nothing. `SearchView` remembers the last `/search` params so the results underne
 
 ---
 
-## 13. Metadata
+## 13. Server Actions and optimistic updates: the watchlist
+
+### The SPA way vs Server Actions
+
+In an SPA, saving something means writing a `POST /api/...` endpoint and calling it with
+`fetch`. A **Server Action** skips the endpoint: you write an `async` function in a file
+that starts with `"use server"`, import it into a Client Component and call it like any
+function. Next turns each one into a POST endpoint behind the scenes and handles the
+serialization.
+
+`src/app/actions/watchlist.ts`:
+
+```ts
+"use server";
+
+export async function setWatched(fullName: string, watched: boolean) {
+  const list = await readWatchlist();      // reads the cookie
+  // …validate, add or remove…
+  await writeWatchlist(next);             // sets the cookie
+  return { ok: true, list: next };
+}
+```
+
+Things to know:
+
+- **It's a public endpoint.** Anyone can call it with any arguments, so it validates
+  `fullName` against a pattern and caps the list at 50 entries.
+- **Return errors, don't throw them.** In production Next hides thrown error messages.
+  The action returns `{ ok: false, error }` so the "watchlist is full" message reaches
+  the user.
+- **Cookies can only be written here** (or in Route Handlers). A Server Component can read
+  them but not set them, because by the time it renders, the response is already streaming.
+
+### Where the data lives
+
+The watchlist is a JSON array of `"owner/repo"` names in an `httpOnly` cookie
+(`src/lib/watchlist.ts`). No database or login needed, and every request carries it, so
+Server Components can read it with `cookies()`. Reading `cookies()` makes that part of
+the page per-request, so it must be inside `<Suspense>`.
+
+### Two optimistic patterns, side by side
+
+Optimistic UI means updating the screen before the server confirms, and undoing it if
+the server fails. The app shows both ways to do it.
+
+**1. TanStack Query mutation** (`components/watch-button.tsx`, used on the repo page,
+search cards and the preview modal):
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant WB as WatchButton
+  participant QC as TanStack cache ["watchlist"]
+  participant SA as setWatched (Server Action)
+  U->>WB: click ☆ Watch
+  WB->>QC: onMutate: snapshot old list, write new list
+  QC-->>WB: every WatchButton + header count re-render (★)
+  WB->>SA: mutationFn → setWatched(name, true)
+  alt success
+    SA-->>WB: { ok: true, list }
+    WB->>QC: onSuccess: store server list
+  else failure (network, list full)
+    SA-->>WB: error
+    WB->>QC: onError: restore snapshot (rollback)
+    WB-->>U: show error message
+  end
+```
+
+All watch buttons and the header counter read the same cache key, so a click anywhere
+updates all of them at once.
+
+**2. React `useOptimistic` with a form** (`watchlist/watchlist-items.tsx`, the Remove
+buttons on `/watchlist`):
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant WI as WatchlistItems
+  participant SA as removeFromWatchlist (Server Action)
+  participant P as /watchlist (Server Component)
+  U->>WI: submit <form action={remove}>
+  WI->>WI: removeOptimistic(name): row disappears now
+  WI->>SA: removeFromWatchlist(formData)
+  SA->>SA: write cookie
+  SA-->>P: Next re-renders the page in the same response
+  P-->>WI: new `repos` prop
+  WI->>WI: optimistic state settles on the new props
+  Note over WI: If the action fails, the transition ends with the old props and the row comes back by itself
+```
+
+Rule of thumb: `useOptimistic` fits when the truth comes from server-rendered props;
+TanStack's `onMutate` fits when the truth lives in the client cache.
+
+### Keeping server-rendered and cached data in sync
+
+`/watchlist` is rendered on the server, but buttons elsewhere change the list through the
+client cache. Because Next keeps visited pages alive (section 11), going Back to
+`/watchlist` could show an old list. `WatchlistItems` compares the names the server
+rendered with the cached list and calls `router.refresh()` when they differ, which asks
+the server for a fresh render of the current page.
+
+`/watchlist` also seeds the client cache (`setQueryData` + `HydrationBoundary`), so the
+header count doesn't need its own request on that page.
+
+### A hydration trap and the fix
+
+The watch button is disabled until the watchlist has loaded. Sometimes the list was
+already in the cache by the time a button hydrated (another component had fetched it).
+The first client render then said "enabled" while the server HTML said "disabled".
+React doesn't fix mismatched attributes during hydration, so the button stayed disabled
+forever.
+
+The fix is `src/hooks/use-hydrated.ts`: it returns `false` during SSR and the hydration
+render, `true` afterwards. Components that depend on browser-only data render the server
+version first, then update. Use the same trick for anything based on `localStorage`,
+the current time, or other data the server can't know.
+
+---
+
+## 14. Metadata
 
 Instead of managing `<title>` with a library, pages export metadata:
 
@@ -509,22 +641,23 @@ Instead of managing `<title>` with a library, pages export metadata:
 
 ---
 
-## 14. Reading the build output
+## 15. Reading the build output
 
 `pnpm build` prints a symbol per route:
 
 | Symbol | Meaning | Examples |
 | --- | --- | --- |
 | `○` Static | Fully built ahead of time, served as a file | `/`, `/languages`, `/trending/daily`, `/vercel/next.js` |
-| `◐` Partial Prerender | Static shell built ahead of time, the rest streams per request | `/[owner]/[repo]` for unknown repos, `/search` |
+| `◐` Partial Prerender | Static shell built ahead of time, the rest streams per request | `/[owner]/[repo]` for unknown repos, `/search`, `/watchlist` |
 | `ƒ` Dynamic | Runs on every request | `/api/search`, `/api/revalidate` |
 
-`/search` is `◐` because results depend on `?q=`. Its prefetch calls
-`await connection()`, which explicitly says "this part only runs at request time".
+`/search` is `◐` because results depend on `?q=`, and `/watchlist` because it reads a
+cookie. Both call `await connection()` before using TanStack's `dehydrate()`, which
+explicitly says "this part only runs at request time".
 
 ---
 
-## 15. Cheat sheet: SPA habit → Next.js equivalent
+## 16. Cheat sheet: SPA habit → Next.js equivalent
 
 | SPA habit | In this project |
 | --- | --- |
@@ -540,3 +673,6 @@ Instead of managing `<title>` with a library, pages export metadata:
 | Rebuild and redeploy to update static pages | ISR + `revalidateTag` |
 | Modal state in `useState` | Parallel + intercepting routes, state in the URL |
 | Page unmounts when you navigate away | Page is hidden with `<Activity>` and restored on Back |
+| `POST /api/...` endpoint + `fetch` for mutations | Server Action (`"use server"`) called like a function or used as `<form action>` |
+| localStorage for user prefs | Cookie set in a Server Action, readable by Server Components |
+| Optimistic update by hand | TanStack `onMutate` + rollback, or React `useOptimistic` |
