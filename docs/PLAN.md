@@ -52,7 +52,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - Watchlist stored in a cookie (no auth needed), mutated via Server Actions
 - Optimistic star/watch toggles with TanStack `useMutation` (`onMutate` / rollback) and `useOptimistic`
 
-### M6 — Proxy, metadata polish, OG images
+### M6 — Proxy, metadata polish, OG images ✅
 - `proxy.ts`: normalize routes (e.g. `/owner/repo.git` → `/owner/repo`), attach headers
 - `opengraph-image.tsx` for repo and user pages, sitemap, robots
 

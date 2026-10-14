@@ -15,7 +15,7 @@ export class GitHubError extends Error {
 export class GitHubRateLimitError extends GitHubError {
   constructor(readonly resetAt: Date | null) {
     super(
-      `GitHub API rate limit exceeded${resetAt ? `, resets at ${resetAt.toISOString()}` : ""}. Set GITHUB_TOKEN to raise the limit.`,
+      `GitHub API rate limit exceeded${resetAt ? `, resets at ${resetAt.toISOString()}` : ""}.${process.env.GITHUB_TOKEN ? "" : " Set GITHUB_TOKEN to raise the limit."}`,
       403,
     );
     this.name = "GitHubRateLimitError";
@@ -39,33 +39,58 @@ function buildHeaders(accept: string): HeadersInit {
   return headers;
 }
 
+/**
+ * GitHub's search API has a "secondary" rate limit that trips on bursts of
+ * concurrent requests (e.g. `next build` prerendering every leaderboard at
+ * once). Run search requests one at a time per server process.
+ */
+let searchQueue: Promise<unknown> = Promise.resolve();
+function serialize<T>(task: () => Promise<T>): Promise<T> {
+  const run = searchQueue.then(task, task);
+  searchQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function send(url: URL, accept: string, attempt = 1): Promise<Response> {
+  const res = await fetch(url, { headers: buildHeaders(accept) });
+  if (res.status !== 403 && res.status !== 429) return res;
+
+  const retryAfter = res.headers.get("retry-after");
+  const reset = res.headers.get("x-ratelimit-reset");
+  const primaryExhausted = res.headers.get("x-ratelimit-remaining") === "0";
+  // Secondary limits come without Retry-After at times; the body says so.
+  const secondary =
+    !primaryExhausted && /secondary rate limit/i.test(await res.clone().text());
+
+  if (secondary && attempt < 3) {
+    // Back off briefly and try again (2s, then 4s).
+    await new Promise((r) => setTimeout(r, 2000 * attempt));
+    return send(url, accept, attempt + 1);
+  }
+  if (primaryExhausted || secondary || retryAfter) {
+    throw new GitHubRateLimitError(
+      retryAfter
+        ? new Date(Date.now() + Number(retryAfter) * 1000)
+        : reset
+          ? new Date(Number(reset) * 1000)
+          : null,
+    );
+  }
+  return res;
+}
+
 async function request(path: string, options: GitHubFetchOptions) {
   const url = new URL(path, GITHUB_API);
   for (const [key, value] of Object.entries(options.searchParams ?? {})) {
     url.searchParams.set(key, String(value));
   }
 
-  const res = await fetch(url, {
-    headers: buildHeaders(options.accept ?? "application/vnd.github+json"),
-  });
+  const accept = options.accept ?? "application/vnd.github+json";
+  const res = await (path.startsWith("/search/")
+    ? serialize(() => send(url, accept))
+    : send(url, accept));
 
   if (res.status === 404) return null;
-
-  if (res.status === 403 || res.status === 429) {
-    // Primary limit: remaining hits 0. Secondary limit (e.g. bursts of search
-    // requests): a Retry-After header instead.
-    const reset = res.headers.get("x-ratelimit-reset");
-    const retryAfter = res.headers.get("retry-after");
-    if (res.headers.get("x-ratelimit-remaining") === "0" || retryAfter) {
-      throw new GitHubRateLimitError(
-        retryAfter
-          ? new Date(Date.now() + Number(retryAfter) * 1000)
-          : reset
-            ? new Date(Number(reset) * 1000)
-            : null,
-      );
-    }
-  }
 
   if (!res.ok) {
     throw new GitHubError(

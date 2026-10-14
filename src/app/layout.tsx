@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { SiteHeader } from "@/components/site-header";
+import { siteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +16,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Turns relative URLs in metadata (like generated OG images) into absolute ones.
+  metadataBase: siteUrl,
   title: {
     default: "RepoRadar",
     template: "%s · RepoRadar",
   },
   description: "Explore GitHub repositories, developers and what's trending.",
+  openGraph: { siteName: "RepoRadar", type: "website" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

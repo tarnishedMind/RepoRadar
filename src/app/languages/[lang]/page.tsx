@@ -10,15 +10,20 @@ import {
   LANGUAGES,
   getLanguageLeaderboard,
   isLanguageSlug,
+  type LanguageSlug,
 } from "@/lib/github";
 
 type Props = PageProps<"/languages/[lang]">;
 
-// All supported languages are prerendered. Data is cached with cacheLife("days")
-// and tagged `leaderboard` + `leaderboard:<lang>`, so POST /api/revalidate can
-// refresh one language or all of them on demand.
+// The most popular languages are prerendered at build time; the others are
+// rendered on their first visit and cached from then on (ISR). Building only a
+// few keeps `next build` under GitHub's search rate limit. Data is cached with
+// cacheLife("days") and tagged `leaderboard` + `leaderboard:<lang>`, so
+// POST /api/revalidate can refresh one language or all of them on demand.
+const PRERENDERED: LanguageSlug[] = ["typescript", "javascript", "python", "rust"];
+
 export function generateStaticParams() {
-  return Object.keys(LANGUAGES).map((lang) => ({ lang }));
+  return PRERENDERED.map((lang) => ({ lang }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: name,
     description: user.bio ?? `${name} on GitHub, explored with RepoRadar.`,
-    openGraph: { title: name, images: [user.avatar_url] },
+    openGraph: { title: name },
   };
 }
 

@@ -1,6 +1,6 @@
 # RepoRadar architecture: Next.js for SPA developers
 
-This guide explains everything built in milestones M0 to M5, written for someone who
+This guide explains everything built in milestones M0 to M6, written for someone who
 knows single-page apps (React + a router + `useEffect` fetching) but is new to the
 Next.js App Router. Each section starts with the SPA habit, then shows what Next.js
 does instead, and where to see it in this repo.
@@ -22,9 +22,10 @@ does instead, and where to see it in this repo.
 11. [Navigation: soft, hard, and preserved pages](#11-navigation-soft-hard-and-preserved-pages)
 12. [Parallel and intercepting routes: the preview modal](#12-parallel-and-intercepting-routes-the-preview-modal)
 13. [Server Actions and optimistic updates: the watchlist](#13-server-actions-and-optimistic-updates-the-watchlist)
-14. [Metadata](#14-metadata)
-15. [Reading the build output](#15-reading-the-build-output)
-16. [Cheat sheet: SPA habit → Next.js equivalent](#16-cheat-sheet-spa-habit--nextjs-equivalent)
+14. [Proxy: code that runs before every page](#14-proxy-code-that-runs-before-every-page)
+15. [Metadata, share images, sitemap and robots](#15-metadata-share-images-sitemap-and-robots)
+16. [Reading the build output](#16-reading-the-build-output)
+17. [Cheat sheet: SPA habit → Next.js equivalent](#17-cheat-sheet-spa-habit--nextjs-equivalent)
 
 ---
 
@@ -79,10 +80,12 @@ A folder becomes a URL segment, and a `page.tsx` inside it makes that URL reacha
 
 ```mermaid
 flowchart TD
-  root["app/<br/>layout.tsx · page.tsx · error.tsx · not-found.tsx"]
+  proxy["src/proxy.ts<br/>runs before routing (redirects, rewrites, headers)"]
+  proxy --> root
+  root["app/<br/>layout.tsx · page.tsx · error.tsx · not-found.tsx<br/>opengraph-image.tsx · sitemap.ts · robots.ts"]
   root --> home["/ <br/>page.tsx"]
-  root --> repo["[owner]/[repo]/<br/>page.tsx<br/>→ /vercel/next.js"]
-  root --> user["u/[login]/<br/>page.tsx · loading.tsx<br/>→ /u/torvalds"]
+  root --> repo["[owner]/[repo]/<br/>page.tsx · opengraph-image.tsx<br/>→ /vercel/next.js"]
+  root --> user["u/[login]/<br/>page.tsx · loading.tsx · opengraph-image.tsx<br/>→ /u/torvalds"]
   root --> trending["trending/[[...range]]/<br/>page.tsx<br/>→ /trending, /trending/daily"]
   root --> langs["languages/<br/>page.tsx → /languages"]
   langs --> lang["[lang]/page.tsx<br/>→ /languages/rust"]
@@ -122,6 +125,11 @@ Special files inside a route folder:
 | `not-found.tsx` | UI for `notFound()` |
 | `default.tsx` | Fallback for a parallel slot when Next can't tell what it should show |
 | `route.ts` | An HTTP endpoint (GET, POST…) instead of a page |
+| `opengraph-image.tsx` | Generates the share image for that route (section 15) |
+| `sitemap.ts`, `robots.ts` | Generate `/sitemap.xml` and `/robots.txt` (root only) |
+
+One file sits outside `app/`: `src/proxy.ts`, which runs before any of these
+(section 14).
 
 Layouts nest. Every page here is rendered inside the root layout:
 
@@ -146,11 +154,13 @@ time.
 sequenceDiagram
   autonumber
   participant B as Browser
+  participant P as proxy.ts
   participant N as Next.js server
   participant C as "use cache" store
   participant G as GitHub API
 
-  B->>N: GET /TanStack/query
+  B->>P: GET /TanStack/query
+  P->>N: URL is already clean, continue
   N-->>B: Static shell right away: layout, header, skeletons
   Note over N: Inside <Suspense>: await params, getRepo()
   N->>C: getRepo("TanStack","query")
@@ -299,7 +309,10 @@ search params).
 - `[owner]/[repo]` builds `vercel/next.js` and `facebook/react`.
 - `u/[login]` builds `vercel`.
 - `trending/[[...range]]` builds `/trending`, `/daily`, `/weekly`, `/monthly`.
-- `languages/[lang]` builds all 12 languages.
+- `languages/[lang]` builds the 4 most popular languages. The other 8 are built on
+  their first visit. Building all 12 at once fired a burst of GitHub search requests and
+  tripped GitHub's "secondary" rate limit, which failed the build. The GitHub client also
+  runs search requests one at a time and retries briefly when that limit hits.
 
 Any other URL is rendered on its first visit and then stored, so later visitors get it
 instantly. When the `cacheLife` window passes, the next visitor still gets the stored
@@ -628,20 +641,120 @@ the current time, or other data the server can't know.
 
 ---
 
-## 14. Metadata
+## 14. Proxy: code that runs before every page
+
+### The SPA way vs Proxy
+
+In an SPA, redirects and URL cleanup live in the router config or in your web server
+(nginx, Netlify `_redirects`). In Next.js, `src/proxy.ts` is a function that runs on the
+server **before routing**, for every request that matches its `matcher`. It sees the
+URL, headers and cookies, and can:
+
+- **Redirect**: tell the browser to go to another URL (the address bar changes).
+- **Rewrite**: serve a different route's content while the address bar keeps the
+  original URL.
+- **Add headers** to the response, or just let the request continue.
+
+Before Next 16 this file was called `middleware.ts`. It's meant for fast decisions based
+on the request itself, not for fetching data.
+
+### What RepoRadar's proxy does
+
+```mermaid
+flowchart TD
+  req["Incoming request"] --> m{"Matches the matcher?<br/>(skips /api, /_next, images,<br/>OG images, sitemap, robots)"}
+  m -- no --> route["Normal routing"]
+  m -- yes --> gh{"Starts with github.com<br/>or https:/github.com?"}
+  gh -- yes --> strip["Strip that prefix"]
+  gh -- no --> at
+  strip --> at{"Single segment<br/>starting with @?"}
+  at -- "yes: /@torvalds" --> rw["Rewrite to /u/torvalds<br/>(URL stays /@torvalds)"]
+  at -- no --> own{"First segment is an owner<br/>(not u, trending, search…)?"}
+  own -- "/torvalds" --> r1["308 → /u/torvalds"]
+  own -- "/vercel/next.js.git<br/>/vercel/next.js/tree/canary" --> r2["308 → /vercel/next.js"]
+  own -- "already clean" --> hdr
+  own -- "reserved section" --> hdr["Continue; add X-Robots-Tag: noindex<br/>for /search and /watchlist"]
+  hdr --> route
+```
+
+So you can take any GitHub URL, put the RepoRadar domain in front of it, and land on
+the right page: `/github.com/vercel/next.js/issues` redirects to `/vercel/next.js`.
+
+Things to know:
+
+- **The matcher matters.** Without it, the proxy would also run for JS chunks, images and
+  the generated OG images (`/vercel/next.js/opengraph-image` has three segments and would
+  get "cleaned up" into a redirect).
+- **Redirects only for GET/HEAD.** Server Actions arrive as POST requests to the current
+  page's URL and must pass through untouched.
+- **Reserved names** (`u`, `trending`, `languages`, `search`, `watchlist`, `api`) live in
+  `src/lib/site.ts`. A GitHub user literally named `trending` can't get a short URL, but
+  `/u/trending` still works.
+- `X-Robots-Tag: noindex` is a response header that tells search engines not to index
+  search results or someone's personal watchlist.
+
+---
+
+## 15. Metadata, share images, sitemap and robots
+
+### Titles and descriptions
 
 Instead of managing `<title>` with a library, pages export metadata:
 
-- `app/layout.tsx` exports a static `metadata` object with a title template
-  (`%s · RepoRadar`).
+- `app/layout.tsx` exports a static `metadata` object: a title template
+  (`%s · RepoRadar`), a default description, `openGraph.siteName`,
+  `twitter.card: "summary_large_image"`, and `metadataBase`.
 - Dynamic pages export `generateMetadata({ params })`, which fetches the same cached data
   as the page (no extra GitHub call, thanks to `"use cache"`) and returns title,
   description and Open Graph tags. Examples: repo, user, trending, leaderboard and search
   pages.
+- Child metadata is merged over parent metadata, but nested objects like `openGraph` are
+  replaced, not deep-merged.
+
+`metadataBase` (from `src/lib/site.ts`) turns relative URLs into absolute ones, which
+social networks require. It uses `NEXT_PUBLIC_SITE_URL`, then Vercel's production
+domain, then `http://localhost:3000`.
+
+### Generated share images
+
+When someone pastes a RepoRadar link into Slack, X or LinkedIn, the preview card shows
+the `og:image`. Instead of designing static PNGs, `opengraph-image.tsx` files generate
+them with JSX:
+
+| File | Image |
+| --- | --- |
+| `app/opengraph-image.tsx` | Default RepoRadar card for every page without its own |
+| `app/[owner]/[repo]/opengraph-image.tsx` | Owner avatar, repo name, description, stars, forks, language |
+| `app/u/[login]/opengraph-image.tsx` | Avatar, name, bio, followers, public repos |
+
+```mermaid
+sequenceDiagram
+  participant S as Slack / X crawler
+  participant N as Next.js
+  participant C as "use cache" (getRepo)
+  S->>N: GET /vercel/next.js
+  N-->>S: HTML with <meta property="og:image" content=".../vercel/next.js/opengraph-image?…">
+  S->>N: GET /vercel/next.js/opengraph-image
+  N->>C: getRepo("vercel","next.js") (usually a cache hit)
+  N->>N: ImageResponse: JSX → 1200×630 PNG (next/og)
+  N-->>S: image/png
+```
+
+Next adds the `og:image` and `twitter:image` tags automatically because the file exists;
+pages don't reference it. `ImageResponse` uses a different renderer than the browser
+(Satori): only flexbox layout and inline `style` objects, no Tailwind classes. The shared
+layout is `src/components/og/og-card.tsx`.
+
+### Sitemap and robots
+
+`app/sitemap.ts` and `app/robots.ts` are functions that return plain objects. Next turns
+them into `/sitemap.xml` and `/robots.txt` at build time. The sitemap lists the home,
+trending and leaderboard pages; robots allows everything except `/api/`, `/search` and
+`/watchlist`, and points to the sitemap.
 
 ---
 
-## 15. Reading the build output
+## 16. Reading the build output
 
 `pnpm build` prints a symbol per route:
 
@@ -649,7 +762,11 @@ Instead of managing `<title>` with a library, pages export metadata:
 | --- | --- | --- |
 | `○` Static | Fully built ahead of time, served as a file | `/`, `/languages`, `/trending/daily`, `/vercel/next.js` |
 | `◐` Partial Prerender | Static shell built ahead of time, the rest streams per request | `/[owner]/[repo]` for unknown repos, `/search`, `/watchlist` |
-| `ƒ` Dynamic | Runs on every request | `/api/search`, `/api/revalidate` |
+| `ƒ` Dynamic | Runs on every request | `/api/search`, `/api/revalidate`, `/[owner]/[repo]/opengraph-image` |
+
+The output also ends with `ƒ Proxy (Middleware)`, confirming `src/proxy.ts` is active.
+The repo OG image is `ƒ` because it depends on the URL, but the GitHub data behind it is
+still cached, so each render is cheap.
 
 `/search` is `◐` because results depend on `?q=`, and `/watchlist` because it reads a
 cookie. Both call `await connection()` before using TanStack's `dehydrate()`, which
@@ -657,7 +774,7 @@ explicitly says "this part only runs at request time".
 
 ---
 
-## 16. Cheat sheet: SPA habit → Next.js equivalent
+## 17. Cheat sheet: SPA habit → Next.js equivalent
 
 | SPA habit | In this project |
 | --- | --- |
@@ -676,3 +793,6 @@ explicitly says "this part only runs at request time".
 | `POST /api/...` endpoint + `fetch` for mutations | Server Action (`"use server"`) called like a function or used as `<form action>` |
 | localStorage for user prefs | Cookie set in a Server Action, readable by Server Components |
 | Optimistic update by hand | TanStack `onMutate` + rollback, or React `useOptimistic` |
+| Redirect rules in nginx / Netlify `_redirects` | `src/proxy.ts` (redirect, rewrite, headers) |
+| Static `og-image.png` per page | `opengraph-image.tsx` generating images from data |
+| Hand-written `sitemap.xml` / `robots.txt` | `app/sitemap.ts` / `app/robots.ts` |
