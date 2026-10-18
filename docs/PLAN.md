@@ -56,7 +56,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - `proxy.ts`: normalize routes (e.g. `/owner/repo.git` → `/owner/repo`), attach headers
 - `opengraph-image.tsx` for repo and user pages, sitemap, robots
 
-### M7 — Quality & deploy
+### M7 — Quality & deploy (tests, CI, README done; Vercel deploy pending)
 - Unit tests (Vitest) for the data layer, Playwright smoke tests
 - GitHub Actions CI (lint, typecheck, build)
 - Deploy to Vercel, README with screenshots and architecture notes
