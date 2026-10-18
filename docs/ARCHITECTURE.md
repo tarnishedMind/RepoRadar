@@ -1,6 +1,6 @@
 # RepoRadar architecture: Next.js for SPA developers
 
-This guide explains everything built in milestones M0 to M6, written for someone who
+This guide explains everything built in milestones M0 to M7, written for someone who
 knows single-page apps (React + a router + `useEffect` fetching) but is new to the
 Next.js App Router. Each section starts with the SPA habit, then shows what Next.js
 does instead, and where to see it in this repo.
@@ -25,7 +25,8 @@ does instead, and where to see it in this repo.
 14. [Proxy: code that runs before every page](#14-proxy-code-that-runs-before-every-page)
 15. [Metadata, share images, sitemap and robots](#15-metadata-share-images-sitemap-and-robots)
 16. [Reading the build output](#16-reading-the-build-output)
-17. [Cheat sheet: SPA habit → Next.js equivalent](#17-cheat-sheet-spa-habit--nextjs-equivalent)
+17. [Testing, CI and deployment](#17-testing-ci-and-deployment)
+18. [Cheat sheet: SPA habit → Next.js equivalent](#18-cheat-sheet-spa-habit--nextjs-equivalent)
 
 ---
 
@@ -774,7 +775,70 @@ explicitly says "this part only runs at request time".
 
 ---
 
-## 17. Cheat sheet: SPA habit → Next.js equivalent
+## 17. Testing, CI and deployment
+
+### Two kinds of tests
+
+In an SPA you might test components with Jest and a fake DOM. Here most logic lives in
+plain server-side functions, so the unit tests target those directly, and a handful of
+browser tests check that the Next.js features work together in a real production build.
+
+| | Unit tests (Vitest) | Smoke tests (Playwright) |
+| --- | --- | --- |
+| Where | `src/**/*.test.ts` next to the code | `e2e/smoke.spec.ts` |
+| Runs against | Plain functions in Node | `next start` serving a production build, in Chrome |
+| Network | None: `fetch` and `next/headers` are mocked | Real GitHub API |
+| Covers | GitHub client (404, rate limits, retries, one-at-a-time search), search param parsing, infinite-scroll paging, watchlist cookie validation, every proxy redirect and rewrite | Home search via `next/form`, repo page + OG tag, intercepted modal open/close, full page on direct load, watchlist add/remove, proxy URLs, 404 |
+| Command | `pnpm test` | `pnpm build && pnpm test:e2e` |
+
+Three details worth knowing:
+
+- `server-only` throws outside a Next.js server bundle, so `vitest.config.mts` swaps it
+  for an empty module in tests.
+- The proxy is just a function that takes a `NextRequest` and returns a `NextResponse`,
+  so its tests build requests and inspect the response: `status` and `location` for
+  redirects, the `x-middleware-rewrite` header for rewrites.
+- Smoke tests run against a **production** build on purpose. Caching, ISR, prerendering
+  and Activity behave differently in `next dev`.
+
+### From push to production
+
+```mermaid
+flowchart LR
+  dev["git push / pull request"] --> gh[(GitHub repo)]
+  gh --> ci["GitHub Actions (.github/workflows/ci.yml)"]
+  ci --> j1["Job 1: lint · typecheck · unit tests"]
+  ci --> j2["Job 2: next build · Playwright smoke tests"]
+  gh --> v["Vercel GitHub integration"]
+  v -- "pull request / branch" --> prev["Preview deployment<br/>(own URL, linked on the PR)"]
+  v -- "push to main" --> prod["Production deployment"]
+  j1 -. "optional: Deployment Checks" .-> prod
+  j2 -.-> prod
+```
+
+- CI and Vercel both react to the same push independently. Vercel can be told to wait
+  for the CI checks before promoting a deployment (Vercel → Settings → Deployment Checks).
+- The CI build needs a GitHub token because `next build` prerenders pages from the GitHub
+  API. It uses the token GitHub gives every workflow run (`secrets.GITHUB_TOKEN`), so no
+  secret has to be configured.
+
+### What Vercel does with the build
+
+```mermaid
+flowchart TD
+  b["next build output"] --> st["○ static pages, JS, CSS, images<br/>→ Vercel CDN"]
+  b --> fn["Server Components, Route Handlers,<br/>Server Actions, OG images<br/>→ serverless functions"]
+  b --> px["proxy.ts<br/>→ runs before every matching request"]
+  b --> cache["'use cache' entries, ISR pages<br/>→ Vercel's data cache, refreshed in the background"]
+```
+
+Environment variables (`GITHUB_TOKEN`, `REVALIDATE_SECRET`, optionally
+`NEXT_PUBLIC_SITE_URL`) are set in the Vercel dashboard, never committed. The README has
+the step-by-step setup.
+
+---
+
+## 18. Cheat sheet: SPA habit → Next.js equivalent
 
 | SPA habit | In this project |
 | --- | --- |
@@ -796,3 +860,5 @@ explicitly says "this part only runs at request time".
 | Redirect rules in nginx / Netlify `_redirects` | `src/proxy.ts` (redirect, rewrite, headers) |
 | Static `og-image.png` per page | `opengraph-image.tsx` generating images from data |
 | Hand-written `sitemap.xml` / `robots.txt` | `app/sitemap.ts` / `app/robots.ts` |
+| Jest + jsdom for everything | Vitest for server-side logic, Playwright against a production build |
+| Upload `dist/` to a static host | Vercel builds from GitHub: CDN for static pages, functions for the rest |
