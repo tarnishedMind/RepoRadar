@@ -1,0 +1,78 @@
+import { expect, test } from "@playwright/test";
+
+test("home page searches with next/form", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "RepoRadar" })).toBeVisible();
+
+  await page.getByPlaceholder("Search repositories…").fill("tanstack query");
+  await page.getByRole("button", { name: "Search" }).click();
+
+  await expect(page).toHaveURL(/\/search\?q=tanstack\+query/);
+  await expect(page.getByText(/^[\d.,]+[KMB]? repositories$/)).toBeVisible();
+  await expect(page.locator("main a[href^='/']").first()).toBeVisible();
+});
+
+test("repo page renders server data and streams the README", async ({ page }) => {
+  await page.goto("/vercel/next.js");
+  await expect(page).toHaveTitle("vercel/next.js · RepoRadar");
+  // The README can contain its own <h1>, so scope to the page header.
+  await expect(page.locator("main header h1")).toContainText("next.js");
+  await expect(page.getByText("Stars", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "README" })).toBeVisible();
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /\/vercel\/next\.js\/opengraph-image/,
+  );
+});
+
+test("search result opens in an intercepted modal and closes on Escape", async ({ page }) => {
+  await page.goto("/search?q=react");
+  const firstResult = page.locator("main a.rounded-lg").first();
+  const href = await firstResult.getAttribute("href");
+  await firstResult.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(href!);
+  await expect(page.locator("main a.rounded-lg").first()).toBeAttached(); // results stay underneath
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(page).toHaveURL(/\/search\?q=react/);
+});
+
+test("opening a repo URL directly renders the full page, not the modal", async ({ page }) => {
+  await page.goto("/facebook/react");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "README" })).toBeVisible();
+});
+
+test("watchlist: watch optimistically, list it, remove it", async ({ page }) => {
+  await page.goto("/vercel/next.js");
+  const watch = page.getByRole("button", { name: "☆ Watch" });
+  await expect(watch).toBeEnabled();
+  await watch.click();
+
+  await expect(page.getByRole("button", { name: "★ Watching" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Watchlist\s*1/ })).toBeVisible();
+
+  await page.getByRole("link", { name: /Watchlist/ }).click();
+  await expect(page.getByText("vercel/next.js", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByText(/Nothing here yet/)).toBeVisible();
+});
+
+test("proxy cleans up GitHub-style URLs", async ({ page }) => {
+  await page.goto("/github.com/vercel/next.js/tree/canary");
+  await expect(page).toHaveURL(/\/vercel\/next\.js$/);
+
+  await page.goto("/@vercel");
+  await expect(page).toHaveURL(/\/@vercel$/); // rewrite keeps the URL
+  await expect(page.getByText("@vercel", { exact: true })).toBeVisible();
+});
+
+test("unknown repositories show the not-found page", async ({ page }) => {
+  await page.goto("/this-owner-does-not-exist-xyz/nope");
+  await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
+});
