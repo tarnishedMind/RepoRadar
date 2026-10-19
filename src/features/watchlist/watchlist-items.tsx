@@ -26,17 +26,15 @@ export function WatchlistItems({
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [optimisticRepos, removeOptimistic] = useOptimistic(
-    repos,
-    (state, fullName: string) => state.filter((r) => r.full_name !== fullName),
+  const [optimisticRepos, removeOptimistic] = useOptimistic(repos, (state, fullName: string) =>
+    state.filter((r) => r.full_name !== fullName),
   );
 
   // Next keeps this page alive (hidden) when you navigate away. If you watch
   // or unwatch something elsewhere and come back, the client cache is newer
   // than what the server rendered, so ask the server for a fresh render.
   const { data: cachedNames } = useQuery(watchlistQueryOptions());
-  const outOfSync =
-    cachedNames !== undefined && cachedNames.join("\n") !== savedNames.join("\n");
+  const outOfSync = cachedNames !== undefined && cachedNames.join("\n") !== savedNames.join("\n");
   useEffect(() => {
     if (outOfSync) router.refresh();
   }, [outOfSync, router]);

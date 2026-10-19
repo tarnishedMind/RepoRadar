@@ -10,10 +10,9 @@ export function useInView<T extends Element>(rootMargin = "400px") {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { rootMargin },
-    );
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+      rootMargin,
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, [rootMargin]);

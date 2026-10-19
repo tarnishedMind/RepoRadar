@@ -3,10 +3,7 @@ import { isRepoFullName } from "@/entities/github";
 import { GitHubError, getRepo } from "@/entities/github/server";
 
 /** Repo details for client-side prefetching (hover) and the preview modal. */
-export async function GET(
-  _request: NextRequest,
-  ctx: RouteContext<"/api/repos/[owner]/[repo]">,
-) {
+export async function GET(_request: NextRequest, ctx: RouteContext<"/api/repos/[owner]/[repo]">) {
   const { owner, repo } = await ctx.params;
   // Reject names GitHub can't have before they reach the API path.
   if (!isRepoFullName(`${owner}/${repo}`)) {

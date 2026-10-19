@@ -6,11 +6,7 @@ import { Skeleton } from "@/shared/ui/skeleton";
 import { UpdatedAt } from "@/shared/ui/updated-at";
 import { parseRange } from "./range";
 
-export async function TrendingList({
-  params,
-}: {
-  params: Promise<{ range?: string[] }>;
-}) {
+export async function TrendingList({ params }: { params: Promise<{ range?: string[] }> }) {
   const range = parseRange((await params).range);
   if (!range) notFound();
 

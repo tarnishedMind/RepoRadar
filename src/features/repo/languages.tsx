@@ -23,9 +23,7 @@ export async function Languages({ owner, repo }: { owner: string; repo: string }
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-        Languages
-      </h2>
+      <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">Languages</h2>
       <div className="flex h-2 overflow-hidden rounded-full">
         {top.map((l, i) => (
           <div key={l.name} className={COLORS[i]} style={{ width: `${l.share * 100}%` }} />

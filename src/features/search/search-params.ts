@@ -7,9 +7,7 @@ import {
   type SearchSort,
 } from "@/entities/github";
 
-type RawParams =
-  | URLSearchParams
-  | Record<string, string | string[] | undefined>;
+type RawParams = URLSearchParams | Record<string, string | string[] | undefined>;
 
 function read(raw: RawParams, key: string) {
   const value = raw instanceof URLSearchParams ? raw.get(key) : raw[key];

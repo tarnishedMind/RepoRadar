@@ -97,8 +97,8 @@ describe("githubJson", () => {
 
   it("gives up on a secondary rate limit after three attempts", async () => {
     vi.useFakeTimers();
-    fetchMock.mockImplementation(async () =>
-      new Response("You have exceeded a secondary rate limit", { status: 403 }),
+    fetchMock.mockImplementation(
+      async () => new Response("You have exceeded a secondary rate limit", { status: 403 }),
     );
 
     const promise = githubJson("/search/repositories").catch((e: unknown) => e);
@@ -108,7 +108,9 @@ describe("githubJson", () => {
   });
 
   it("throws GitHubError with the status for other failures", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("boom", { status: 500, statusText: "Server Error" }));
+    fetchMock.mockResolvedValueOnce(
+      new Response("boom", { status: 500, statusText: "Server Error" }),
+    );
 
     const error = await githubJson("/users/a").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(GitHubError);

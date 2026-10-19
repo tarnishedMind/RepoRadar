@@ -75,9 +75,11 @@ describe("searchRepositories", () => {
 
   it("returns an empty page when GitHub returns nothing", async () => {
     http.githubJson.mockResolvedValueOnce(null);
-    await expect(
-      searchRepositories({ q: "x", sort: "stars", lang: "" }, 3),
-    ).resolves.toEqual({ items: [], totalCount: 0, page: 3 });
+    await expect(searchRepositories({ q: "x", sort: "stars", lang: "" }, 3)).resolves.toEqual({
+      items: [],
+      totalCount: 0,
+      page: 3,
+    });
   });
 });
 

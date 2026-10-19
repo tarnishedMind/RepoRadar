@@ -26,22 +26,14 @@ export function RepoPreview({ owner, repo }: { owner: string; repo: string }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-3 pr-8">
-        <Image
-          src={data.owner.avatar_url}
-          alt=""
-          width={40}
-          height={40}
-          className="rounded-full"
-        />
+        <Image src={data.owner.avatar_url} alt="" width={40} height={40} className="rounded-full" />
         <h2 className="text-xl font-semibold tracking-tight">
           <span className="text-zinc-500">{data.owner.login} / </span>
           {data.name}
         </h2>
       </div>
 
-      {data.description && (
-        <p className="text-zinc-600 dark:text-zinc-400">{data.description}</p>
-      )}
+      {data.description && <p className="text-zinc-600 dark:text-zinc-400">{data.description}</p>}
 
       {!!data.topics?.length && (
         <ul className="flex flex-wrap gap-2">
@@ -61,7 +53,9 @@ export function RepoPreview({ owner, repo }: { owner: string; repo: string }) {
         <Stat label="Forks" value={formatCount(data.forks_count)} />
         <Stat
           label="Watchers"
-          value={isPlaceholderData ? "…" : formatCount(data.subscribers_count ?? data.watchers_count)}
+          value={
+            isPlaceholderData ? "…" : formatCount(data.subscribers_count ?? data.watchers_count)
+          }
         />
         <Stat label="Last push" value={formatDate(data.pushed_at)} />
       </div>

@@ -37,9 +37,7 @@ function useStickySearchParams() {
   const current = useSearchParams().toString();
   const [sticky, setSticky] = useState(current);
   if (pathname === "/search" && current !== sticky) setSticky(current);
-  return parseSearchParams(
-    new URLSearchParams(pathname === "/search" ? current : sticky),
-  );
+  return parseSearchParams(new URLSearchParams(pathname === "/search" ? current : sticky));
 }
 
 export function SearchView() {

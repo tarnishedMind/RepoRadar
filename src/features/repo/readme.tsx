@@ -6,9 +6,7 @@ export async function Readme({ owner, repo }: { owner: string; repo: string }) {
 
   return (
     <section className="min-w-0 rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
-      <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        README
-      </h2>
+      <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">README</h2>
       {html ? (
         <article
           className="prose prose-zinc max-w-none dark:prose-invert prose-img:inline prose-img:my-0"

@@ -10,10 +10,7 @@ import { readWatchlist, writeWatchlist } from "./storage";
  * anyone can call them with anything, whatever the TypeScript types say.
  */
 
-export async function setWatched(
-  fullName: unknown,
-  watched: unknown,
-): Promise<WatchlistResult> {
+export async function setWatched(fullName: unknown, watched: unknown): Promise<WatchlistResult> {
   const result = toggleWatched(await readWatchlist(), fullName, watched);
   if (result.ok) await writeWatchlist(result.list);
   return result;

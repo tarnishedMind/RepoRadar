@@ -18,7 +18,8 @@ const publicApiOnly = [
   },
   {
     group: ["@/app", "@/app/**"],
-    message: "Nothing imports from the app layer; move shared code down to features, entities or shared.",
+    message:
+      "Nothing imports from the app layer; move shared code down to features, entities or shared.",
   },
 ];
 

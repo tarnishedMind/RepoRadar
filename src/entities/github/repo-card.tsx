@@ -2,13 +2,7 @@ import Link from "next/link";
 import type { GitHubRepo } from "./types";
 import { formatCount } from "@/shared/lib/format";
 
-export function RepoCard({
-  repo,
-  showOwner = false,
-}: {
-  repo: GitHubRepo;
-  showOwner?: boolean;
-}) {
+export function RepoCard({ repo, showOwner = false }: { repo: GitHubRepo; showOwner?: boolean }) {
   return (
     <Link
       href={`/${repo.full_name}`}

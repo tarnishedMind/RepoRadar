@@ -34,9 +34,7 @@ export async function Leaderboard({ params }: { params: Promise<{ lang: string }
               href={`/${repo.full_name}`}
               className="flex items-center gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
             >
-              <span className="w-6 text-right text-sm tabular-nums text-zinc-400">
-                {i + 1}
-              </span>
+              <span className="w-6 text-right text-sm tabular-nums text-zinc-400">{i + 1}</span>
               <Image
                 src={repo.owner.avatar_url}
                 alt=""

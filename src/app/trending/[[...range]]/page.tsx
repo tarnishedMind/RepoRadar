@@ -10,10 +10,7 @@ type Props = PageProps<"/trending/[[...range]]">;
 // with cacheLife("hours"), so each page is regenerated in the background at most
 // hourly (ISR), or immediately via POST /api/revalidate.
 export function generateStaticParams() {
-  return [
-    { range: [] },
-    ...Object.keys(TRENDING_RANGES).map((range) => ({ range: [range] })),
-  ];
+  return [{ range: [] }, ...Object.keys(TRENDING_RANGES).map((range) => ({ range: [range] }))];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

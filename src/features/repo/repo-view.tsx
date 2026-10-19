@@ -11,11 +11,7 @@ import { Contributors, ContributorsSkeleton } from "./contributors";
 import { Languages, LanguagesSkeleton } from "./languages";
 import { Readme, ReadmeSkeleton } from "./readme";
 
-export async function RepoView({
-  params,
-}: {
-  params: Promise<{ owner: string; repo: string }>;
-}) {
+export async function RepoView({ params }: { params: Promise<{ owner: string; repo: string }> }) {
   const { owner, repo } = await params;
   const data = await getRepo(owner, repo);
   if (!data) notFound();
@@ -39,16 +35,12 @@ export async function RepoView({
             {data.name}
           </h1>
           {data.archived && (
-            <span className="rounded-full border px-2 py-0.5 text-xs text-amber-600">
-              Archived
-            </span>
+            <span className="rounded-full border px-2 py-0.5 text-xs text-amber-600">Archived</span>
           )}
         </div>
 
         {data.description && (
-          <p className="max-w-3xl text-zinc-600 dark:text-zinc-400">
-            {data.description}
-          </p>
+          <p className="max-w-3xl text-zinc-600 dark:text-zinc-400">{data.description}</p>
         )}
 
         {!!data.topics?.length && (

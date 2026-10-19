@@ -22,14 +22,17 @@ import type {
 
 async function searchRepos(
   q: string,
-  { perPage = 30, page = 1, sort = "stars" }: { perPage?: number; page?: number; sort?: string } = {},
+  {
+    perPage = 30,
+    page = 1,
+    sort = "stars",
+  }: { perPage?: number; page?: number; sort?: string } = {},
 ) {
   const searchParams: Record<string, string | number> = { q, per_page: perPage, page };
   if (sort !== "best-match") Object.assign(searchParams, { sort, order: "desc" });
-  const result = await githubJson<GitHubSearchResult<GitHubRepo>>(
-    "/search/repositories",
-    { searchParams },
-  );
+  const result = await githubJson<GitHubSearchResult<GitHubRepo>>("/search/repositories", {
+    searchParams,
+  });
   return result ?? { total_count: 0, incomplete_results: false, items: [] };
 }
 
@@ -55,10 +58,9 @@ export async function getLanguageLeaderboard(lang: LanguageSlug) {
   cacheLife("days");
   cacheTag(tags.leaderboard(), tags.leaderboard(lang));
 
-  const { items, total_count } = await searchRepos(
-    `language:"${LANGUAGES[lang]}"`,
-    { perPage: 50 },
-  );
+  const { items, total_count } = await searchRepos(`language:"${LANGUAGES[lang]}"`, {
+    perPage: 50,
+  });
   return { repos: items, totalCount: total_count, fetchedAt: new Date().toISOString() };
 }
 
@@ -90,10 +92,9 @@ export async function getRepoContributors(owner: string, repo: string) {
   "use cache";
   cacheLife("days");
   cacheTag(tags.repo(owner, repo));
-  return githubJson<GitHubContributor[]>(
-    `/repos/${owner}/${repo}/contributors`,
-    { searchParams: { per_page: 24 } },
-  );
+  return githubJson<GitHubContributor[]>(`/repos/${owner}/${repo}/contributors`, {
+    searchParams: { per_page: 24 },
+  });
 }
 
 export async function getUser(login: string) {

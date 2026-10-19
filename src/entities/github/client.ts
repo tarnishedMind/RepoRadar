@@ -61,8 +61,7 @@ async function send(url: URL, accept: string, attempt = 1): Promise<Response> {
   const reset = res.headers.get("x-ratelimit-reset");
   const primaryExhausted = res.headers.get("x-ratelimit-remaining") === "0";
   // Secondary limits come without Retry-After at times; the body says so.
-  const secondary =
-    !primaryExhausted && /secondary rate limit/i.test(await res.clone().text());
+  const secondary = !primaryExhausted && /secondary rate limit/i.test(await res.clone().text());
 
   if (secondary && attempt < 3) {
     // Back off briefly and try again (2s, then 4s).

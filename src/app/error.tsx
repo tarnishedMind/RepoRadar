@@ -17,8 +17,8 @@ export default function Error({
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-start justify-center gap-4 px-6 py-24">
       <h1 className="text-3xl font-semibold tracking-tight">Something went wrong</h1>
       <p className="max-w-xl text-zinc-600 dark:text-zinc-400">
-        We couldn&apos;t load this page from GitHub. The most common cause is the
-        API rate limit for unauthenticated requests, which resets within an hour.
+        We couldn&apos;t load this page from GitHub. The most common cause is the API rate limit for
+        unauthenticated requests, which resets within an hour.
       </p>
       <button
         onClick={() => retry()}

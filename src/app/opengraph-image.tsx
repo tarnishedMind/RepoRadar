@@ -8,13 +8,11 @@ export const contentType = "image/png";
 
 export default function Image() {
   return new ImageResponse(
-    (
-      <OgCard
-        eyebrow="Explore GitHub"
-        title="RepoRadar"
-        description="Repositories, developers, trending projects and language leaderboards."
-      />
-    ),
+    <OgCard
+      eyebrow="Explore GitHub"
+      title="RepoRadar"
+      description="Repositories, developers, trending projects and language leaderboards."
+    />,
     size,
   );
 }

@@ -4,9 +4,7 @@ import { Modal } from "@/shared/ui/modal";
 
 // `(..)` intercepts the root-level /[owner]/[repo] route one segment above
 // /search, but only for client-side navigations that start inside /search.
-export default function RepoPreviewModal({
-  params,
-}: PageProps<"/[owner]/[repo]">) {
+export default function RepoPreviewModal({ params }: PageProps<"/[owner]/[repo]">) {
   return (
     <Modal>
       <Suspense fallback={<RepoPreviewSkeleton />}>

@@ -33,8 +33,7 @@ export function searchReposInfiniteOptions(params: RepoSearchParams) {
     initialPageParam: 1,
     getNextPageParam: (last) => {
       const reachable = Math.min(last.totalCount, SEARCH_MAX_RESULTS);
-      return last.page * SEARCH_PER_PAGE < reachable &&
-        last.items.length === SEARCH_PER_PAGE
+      return last.page * SEARCH_PER_PAGE < reachable && last.items.length === SEARCH_PER_PAGE
         ? last.page + 1
         : undefined;
     },
