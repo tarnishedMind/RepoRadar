@@ -66,6 +66,9 @@ Open http://localhost:3000.
 
 ### Environment variables
 
+Server-only variables are read only in `src/shared/config/env.ts`, public ones only in
+`src/shared/config/site.ts`. Empty values count as unset.
+
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `GITHUB_TOKEN` | Recommended | Raises the GitHub API limit from 60 to 5,000 requests an hour. A fine-grained token with "Public repositories" access and no permissions is enough. |
@@ -80,7 +83,7 @@ Open http://localhost:3000.
 | `pnpm build` / `pnpm start` | Production build and server. Caching and ISR only behave for real here. |
 | `pnpm lint` | ESLint, including the layer and import-boundary rules |
 | `pnpm typecheck` | Generate route types, then `tsc` |
-| `pnpm test` | Unit tests (Vitest): GitHub client, repo names, search params, query options, trending ranges, watchlist cookie, proxy |
+| `pnpm test` | Unit tests (Vitest) with coverage: GitHub client and cached reads, input guards, search params, query options, watchlist list and cookie, config, proxy. Fails below 80% of lines on core logic. |
 | `pnpm test:e2e` | Smoke tests (Playwright) against a production build. Run `pnpm build` first. Uses your installed Chrome locally. |
 
 ## Testing and CI

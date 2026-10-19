@@ -1,6 +1,6 @@
 # RepoRadar architecture: Next.js for SPA developers
 
-This guide explains everything built in milestones M0 to M8, written for someone who
+This guide explains everything built in milestones M0 to M9, written for someone who
 knows single-page apps (React + a router + `useEffect` fetching) but is new to the
 Next.js App Router. Each section starts with the SPA habit, then shows what Next.js
 does instead, and where to see it in this repo.
@@ -413,6 +413,16 @@ pages. This app has four:
 For *writes* from the browser this app uses Server Actions instead of Route Handlers
 (section 13).
 
+Every input to these endpoints is untrusted, so each one goes through a small pure guard
+before it is used ([ADR 0004](adr/0004-validation-at-trust-boundaries.md)), and each guard
+has unit tests:
+
+| Endpoint | Guard | Rejects with |
+| --- | --- | --- |
+| `GET /api/search` | `parseSearchParams`, `parseSearchPage` (`features/search/search-params.ts`) | 400 for no `q` or a page past GitHub's 1,000-result cap |
+| `GET /api/repos/…` | `isRepoFullName` (`entities/github/repo-name.ts`) | 404 for names GitHub can't have |
+| `POST /api/revalidate` | `hasBearerToken` (`shared/lib/bearer-token.ts`, constant-time compare), `parseRevalidateTags` (`entities/github/tags.ts`, pattern derived from the catalogs) | 401, 400 |
+
 Server Components don't need these endpoints. They call `@/entities/github/server` directly.
 Route Handlers are only for code running in the browser or for outside callers.
 
@@ -551,8 +561,10 @@ export async function setWatched(fullName: string, watched: boolean) {
 
 Things to know:
 
-- **It's a public endpoint.** Anyone can call it with any arguments, so it validates
-  `fullName` against a pattern and caps the list at 50 entries.
+- **It's a public endpoint.** Anyone can call it with any arguments, whatever the
+  TypeScript types say. So the parameters are typed `unknown`, and the pure
+  `toggleWatched` (`features/watchlist/list.ts`) checks `fullName` against GitHub's name
+  rules, requires a real boolean and caps the list at 50 entries.
 - **Return errors, don't throw them.** In production Next hides thrown error messages.
   The action returns `{ ok: false, error }` so the "watchlist is full" message reaches
   the user.
@@ -796,13 +808,21 @@ browser tests check that the Next.js features work together in a real production
 | Covers | GitHub client (404, rate limits, retries, one-at-a-time search), repo-name checks, search param parsing, trending range parsing, infinite-scroll paging, watchlist cookie validation, every proxy redirect and rewrite | Home search via `next/form`, repo page + OG tag, intercepted modal open/close, full page on direct load, watchlist add/remove, proxy URLs, 404 |
 | Command | `pnpm test` | `pnpm build && pnpm test:e2e` |
 
-Three details worth knowing:
+`pnpm test` also measures coverage
+([ADR 0006](adr/0006-unit-test-coverage-threshold.md)) and fails below **80% of lines**
+for `src/entities/**`, `src/proxy.ts` and the `.ts` modules in `src/features/**`. UI
+(`.tsx`), entry files, Server Actions and Route Handlers are left out: the smoke tests
+cover them. The HTML report lands in `coverage/`.
+
+Four details worth knowing:
 
 - `server-only` throws outside a Next.js server bundle, so `vitest.config.mts` swaps it
   for an empty module in tests.
 - The proxy is just a function that takes a `NextRequest` and returns a `NextResponse`,
   so its tests build requests and inspect the response: `status` and `location` for
   redirects, the `x-middleware-rewrite` header for rewrites.
+- Environment variables are read through functions in `shared/config/env.ts`
+  (`env.githubToken()`), not captured at import time, so `vi.stubEnv` works in tests.
 - Smoke tests run against a **production** build on purpose. Caching, ISR, prerendering
   and Activity behave differently in `next dev`.
 

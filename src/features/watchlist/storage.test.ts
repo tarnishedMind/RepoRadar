@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { WATCHLIST_LIMIT } from "./list";
 
 const cookieStore = { get: vi.fn(), set: vi.fn() };
 vi.mock("next/headers", () => ({ cookies: async () => cookieStore }));
 
-const { WATCHLIST_LIMIT, readWatchlist, writeWatchlist } = await import("./storage");
+const { readWatchlist, writeWatchlist } = await import("./storage");
 
 beforeEach(() => {
   cookieStore.get.mockReset();

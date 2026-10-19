@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { isRepoFullName } from "@/entities/github";
+import { WATCHLIST_LIMIT } from "./list";
 
 /**
  * The watchlist lives in a cookie: no accounts or database needed, and it
@@ -9,7 +10,6 @@ import { isRepoFullName } from "@/entities/github";
  */
 
 export const WATCHLIST_COOKIE = "watchlist";
-export const WATCHLIST_LIMIT = 50;
 
 function parse(raw: string | undefined): string[] {
   if (!raw) return [];

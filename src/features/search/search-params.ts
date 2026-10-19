@@ -1,4 +1,6 @@
 import {
+  SEARCH_MAX_RESULTS,
+  SEARCH_PER_PAGE,
   SEARCH_SORTS,
   isLanguageSlug,
   type RepoSearchParams,
@@ -36,4 +38,13 @@ export function toQueryString(params: RepoSearchParams, page?: number) {
   if (params.lang) sp.set("lang", params.lang);
   if (page) sp.set("page", String(page));
   return sp.toString();
+}
+
+/**
+ * Parses the `page` query param of /api/search. Missing or junk values mean
+ * page 1; a page past GitHub's 1,000-result cap returns null.
+ */
+export function parseSearchPage(raw: string | null): number | null {
+  const page = Math.max(1, Number.parseInt(raw ?? "1", 10) || 1);
+  return page * SEARCH_PER_PAGE > SEARCH_MAX_RESULTS + SEARCH_PER_PAGE ? null : page;
 }

@@ -13,5 +13,5 @@ export {
   getUserRepos,
   searchRepositories,
 } from "./cached";
-export { tags } from "./tags";
+export { parseRevalidateTags, tags } from "./tags";
 export { GitHubError, GitHubRateLimitError } from "./client";

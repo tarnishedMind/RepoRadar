@@ -1,5 +1,7 @@
 import "server-only";
 
+import { env } from "@/shared/config/env";
+
 const GITHUB_API = "https://api.github.com";
 
 export class GitHubError extends Error {
@@ -15,7 +17,7 @@ export class GitHubError extends Error {
 export class GitHubRateLimitError extends GitHubError {
   constructor(readonly resetAt: Date | null) {
     super(
-      `GitHub API rate limit exceeded${resetAt ? `, resets at ${resetAt.toISOString()}` : ""}.${process.env.GITHUB_TOKEN ? "" : " Set GITHUB_TOKEN to raise the limit."}`,
+      `GitHub API rate limit exceeded${resetAt ? `, resets at ${resetAt.toISOString()}` : ""}.${env.githubToken() ? "" : " Set GITHUB_TOKEN to raise the limit."}`,
       403,
     );
     this.name = "GitHubRateLimitError";
@@ -34,7 +36,7 @@ function buildHeaders(accept: string): HeadersInit {
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "RepoRadar",
   };
-  const token = process.env.GITHUB_TOKEN;
+  const token = env.githubToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
 }

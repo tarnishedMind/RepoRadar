@@ -1,6 +1,6 @@
 # 0004. Hand-written type guards at trust boundaries
 
-**Status:** Accepted (2026-10-18)
+**Status:** Accepted (2026-10-18), implemented in M9 (2026-10-19)
 
 ## Context
 

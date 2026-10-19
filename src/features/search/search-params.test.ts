@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSearchParams, toQueryString } from "./search-params";
+import { parseSearchPage, parseSearchParams, toQueryString } from "./search-params";
 
 describe("parseSearchParams", () => {
   it("applies defaults for missing values", () => {
@@ -41,5 +41,22 @@ describe("toQueryString", () => {
   it("round-trips through parseSearchParams", () => {
     const params = { q: "state management", sort: "updated", lang: "typescript" } as const;
     expect(parseSearchParams(new URLSearchParams(toQueryString(params)))).toEqual(params);
+  });
+});
+
+describe("parseSearchPage", () => {
+  it.each([
+    [null, 1],
+    ["", 1],
+    ["abc", 1],
+    ["-3", 1],
+    ["2", 2],
+    ["34", 34],
+  ])("%s → %s", (raw, page) => {
+    expect(parseSearchPage(raw)).toBe(page);
+  });
+
+  it("rejects pages past GitHub's 1,000-result cap", () => {
+    expect(parseSearchPage("35")).toBeNull();
   });
 });

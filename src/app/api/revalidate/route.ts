@@ -1,6 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
 import { revalidateTag } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
+import { parseRevalidateTags } from "@/entities/github/server";
+import { env } from "@/shared/config/env";
+import { hasBearerToken } from "@/shared/lib/bearer-token";
 
 /**
  * On-demand revalidation for ISR pages.
@@ -13,34 +15,13 @@ import { NextResponse, type NextRequest } from "next/server";
  * Supported tags: trending, trending:<range>, leaderboard, leaderboard:<lang>,
  * repo:<owner>/<name>, user:<login>.
  */
-
-const TAG_PATTERN =
-  /^(trending(:(daily|weekly|monthly))?|leaderboard(:[a-z]+)?|repo:[\w.-]+\/[\w.-]+|user:[\w-]+)$/;
-
-function isAuthorized(request: NextRequest) {
-  const secret = process.env.REVALIDATE_SECRET;
-  if (!secret) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  const a = Buffer.from(token);
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!hasBearerToken(request.headers.get("authorization"), env.revalidateSecret())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => null)) as { tags?: unknown } | null;
-  const tags = Array.isArray(body?.tags) ? body.tags : [];
-  const valid = tags
-    .filter((t): t is string => typeof t === "string")
-    .map((t) => t.toLowerCase())
-    .filter((t) => TAG_PATTERN.test(t));
-
-  if (!valid.length || valid.length !== tags.length) {
+  const tags = parseRevalidateTags(await request.json().catch(() => null));
+  if (!tags) {
     return NextResponse.json(
       { error: "Body must be { tags: string[] } with supported tags only" },
       { status: 400 },
@@ -48,7 +29,7 @@ export async function POST(request: NextRequest) {
   }
 
   // "max": serve the stale page while the fresh one regenerates in the background.
-  for (const tag of valid) revalidateTag(tag, "max");
+  for (const tag of tags) revalidateTag(tag, "max");
 
-  return NextResponse.json({ revalidated: valid, now: new Date().toISOString() });
+  return NextResponse.json({ revalidated: tags, now: new Date().toISOString() });
 }

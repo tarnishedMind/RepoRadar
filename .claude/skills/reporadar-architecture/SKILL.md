@@ -33,7 +33,7 @@ things live:
 | GitHub client, cached getters, tags, types, catalogs, search constants, repo-name checks, `RepoCard` | `entities/github/*` (client-safe `@/entities/github`, server entry `@/entities/github/server`) |
 | `Skeleton`, `Stat`, `Modal`, `UpdatedAt`, `OgCard` | `shared/ui/*` |
 | `format`, `get-query-client`, `get-json`; `use-hydrated`, `use-in-view` | `shared/lib/*`, `shared/hooks/*` |
-| Public URL, reserved segments | `shared/config/site.ts` (`env.ts` follows in M9, ADR 0005) |
+| Public URL, reserved segments; server secrets | `shared/config/site.ts`; `shared/config/env.ts` (server-only, ADR 0005) |
 | Query keys and options | the owning feature's `queries.ts` (`search`, `repo`, `watchlist`) |
 | Cookie storage, Server Actions, watch buttons, `/watchlist` body | `features/watchlist/*` |
 | Search view, result card, prefetch, preview modal body | `features/search/*` |
@@ -44,7 +44,7 @@ things live:
 Module rules:
 
 - The GitHub client, cached getters and watchlist storage start with
-  `import "server-only"`. Anything that reads `process.env` secrets or `cookies()`
+  `import "server-only"`. Anything that reads secrets (via `env.*`) or `cookies()`
   must too.
 - Client Components never import a server-only module or a barrel that
   re-exports one. Client-safe types and catalogs have their own entry point.
@@ -149,12 +149,13 @@ coloured surface. `next/image` for avatars (host allowed in `next.config.ts`).
 ## 9. Testing expectations
 
 - Unit tests (Vitest, Node env) sit next to the code as `*.test.ts`, for logic in
-  `entities/**`, pure feature modules and `proxy.ts`. Mock `fetch` with `vi.stubGlobal` and `next/headers` with
-  `vi.mock`; no network. `server-only` is aliased to an empty module.
+  `entities/**`, pure feature modules and `proxy.ts`. Mock `fetch` with `vi.stubGlobal`, `next/headers` and `next/cache` with
+  `vi.mock`, env with `vi.stubEnv`; no network. `server-only` is aliased to an empty module.
 - New pure logic (parsing, validation, paging, URL rules) gets unit tests.
   Coverage floor (ADR 0006): 80% of lines across `src/entities/**`, `src/proxy.ts`
   and pure feature modules; `.tsx`, re-export entry files, Server Actions and
-  Route Handlers are excluded. Don't lower it without a new ADR. React
+  Route Handlers are excluded. `pnpm test` enforces it (`vitest.config.mts`).
+  Don't lower it without a new ADR. React
   components are covered by Playwright, not unit tests.
 - Smoke tests (`e2e/smoke.spec.ts`, Playwright) run against `pnpm build && pnpm start`
   on port 3100 with the real GitHub API, one worker. A new user-visible feature gets

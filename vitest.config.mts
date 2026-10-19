@@ -17,5 +17,15 @@ export default defineConfig({
     restoreMocks: true,
     unstubGlobals: true,
     unstubEnvs: true,
+    // ADR 0006: an 80% line floor for core logic. UI (.tsx) is covered by the
+    // Playwright smoke tests; entry files, Server Actions and Route Handlers
+    // are thin wiring.
+    coverage: {
+      provider: "v8",
+      include: ["src/entities/**/*.ts", "src/features/**/*.ts", "src/proxy.ts"],
+      exclude: ["**/*.test.ts", "**/index.ts", "**/server.ts", "**/actions.ts"],
+      reporter: ["text", "html"],
+      thresholds: { lines: 80 },
+    },
   },
 });

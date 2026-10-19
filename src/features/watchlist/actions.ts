@@ -1,47 +1,26 @@
 "use server";
 
-import { isRepoFullName, sameRepo } from "@/entities/github";
-import { WATCHLIST_LIMIT, readWatchlist, writeWatchlist } from "./storage";
+import { toggleWatched, type WatchlistResult } from "./list";
+import { readWatchlist, writeWatchlist } from "./storage";
 
 /**
  * Server Actions: functions that run on the server but are called from the
  * browser like normal async functions (or used as a <form action>). Next turns
- * each one into a POST endpoint. Treat their arguments as untrusted input.
+ * each one into a POST endpoint. Treat their arguments as untrusted input:
+ * anyone can call them with anything, whatever the TypeScript types say.
  */
 
-export type WatchlistResult =
-  | { ok: true; list: string[] }
-  | { ok: false; error: string; list: string[] };
-
 export async function setWatched(
-  fullName: string,
-  watched: boolean,
+  fullName: unknown,
+  watched: unknown,
 ): Promise<WatchlistResult> {
-  const list = await readWatchlist();
-  if (!isRepoFullName(fullName)) {
-    return { ok: false, error: "Invalid repository name", list };
-  }
-
-  const without = list.filter((name) => !sameRepo(name, fullName));
-  if (!watched) {
-    await writeWatchlist(without);
-    return { ok: true, list: without };
-  }
-
-  if (without.length >= WATCHLIST_LIMIT) {
-    // Returned (not thrown) so the message reaches the client in production.
-    return {
-      ok: false,
-      error: `Your watchlist is full (${WATCHLIST_LIMIT} repos). Remove one first.`,
-      list,
-    };
-  }
-  const next = [fullName, ...without];
-  await writeWatchlist(next);
-  return { ok: true, list: next };
+  const result = toggleWatched(await readWatchlist(), fullName, watched);
+  if (result.ok) await writeWatchlist(result.list);
+  return result;
 }
 
 /** Form-friendly variant used by the remove buttons on /watchlist. */
-export async function removeFromWatchlist(formData: FormData) {
-  return setWatched(String(formData.get("fullName") ?? ""), false);
+export async function removeFromWatchlist(formData: unknown) {
+  const fullName = formData instanceof FormData ? formData.get("fullName") : null;
+  return setWatched(fullName, false);
 }
