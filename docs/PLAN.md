@@ -16,13 +16,25 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 | Trending | `/trending/[[...range]]` | ISR (`revalidate`), `generateStaticParams` for daily/weekly/monthly |
 | Language leaderboards | `/languages/[lang]` | ISR + `cacheTag`, on-demand revalidation via `POST /api/revalidate` route handler (secret-protected, `revalidateTag`) |
 | Search | `/search` | TanStack Query `useInfiniteQuery` infinite scroll, URL-synced filters, server prefetch + `HydrationBoundary` |
-| Repo preview modal | `@modal/(.)[owner]/[repo]` | Parallel routes + intercepting routes: modal on soft nav, full page on hard nav/refresh |
+| Repo preview modal | `@modal/(..)[owner]/[repo]` | Parallel routes + intercepting routes: modal on soft nav, full page on hard nav/refresh |
 | Hover prefetch | repo cards | `queryClient.prefetchQuery` on hover, plus `<Link>` prefetch |
 | Watchlist / stars | `/watchlist` | Server Actions, `useOptimistic` and TanStack optimistic mutations with rollback, cookie-backed storage |
 | Rate limit & locale guard | `src/proxy.ts` | Proxy (formerly middleware): request headers, redirects, lightweight rate-limit header surfacing |
 | API layer | `src/lib/github` | Typed fetch wrapper, `cacheLife` / `cacheTag`, optional `GITHUB_TOKEN` for higher limits |
 
-## Milestones
+## Phases
+
+Milestones are numbered globally (M0, M1, …) so commit prefixes like `M7:` stay
+unique; phases group them.
+
+| Phase | Goal | Milestones | Status |
+| --- | --- | --- | --- |
+| 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
+| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core | M8–M9 | In progress |
+
+Structural decisions are recorded in [docs/adr/](adr/README.md).
+
+## Phase 1 — Showcase MVP ✅
 
 ### M0 — Foundation ✅
 - Scaffold Next.js 16 + TypeScript + Tailwind, pnpm, `.nvmrc` (Node 22)
@@ -45,7 +57,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - Prefetch repo details on card hover
 
 ### M4 — Repo preview modal ✅
-- `@modal` parallel slot + `(.)` intercepting route for repo preview
+- `@modal` parallel slot + `(..)` intercepting route for repo preview
 - `default.tsx` fallbacks, close on back navigation
 
 ### M5 — Watchlist, Server Actions & optimistic UI ✅
@@ -56,7 +68,26 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 - `proxy.ts`: normalize routes (e.g. `/owner/repo.git` → `/owner/repo`), attach headers
 - `opengraph-image.tsx` for repo and user pages, sitemap, robots
 
-### M7 — Quality & deploy (tests, CI, README done; Vercel deploy pending)
+### M7 — Quality & deploy ✅
 - Unit tests (Vitest) for the data layer, Playwright smoke tests
 - GitHub Actions CI (lint, typecheck, build)
-- Deploy to Vercel, README with screenshots and architecture notes
+- Deployed to Vercel: https://repo-radar-eta.vercel.app/
+- README with screenshots and architecture notes
+
+## Phase 2 — Architecture & quality
+
+### M8 — Feature folders
+ADRs [0002](adr/0002-feature-folder-layers.md), [0003](adr/0003-cross-feature-imports.md).
+Follow the `reporadar-refactoring` skill: small behavior-preserving steps.
+- ESLint boundary rules (`no-restricted-imports`, `import/no-cycle`)
+- `src/shared` (ui, lib, hooks, config), `src/entities/github`
+- `src/features/{watchlist,search,repo,trending,leaderboard,user}` with `index.ts` / `server.ts`
+- Thin route files, `app/_components` for Providers and SiteHeader
+- Remove duplicated helpers (`sameRepo`, repo-name regex); data layer no longer imports from queries
+- Update ARCHITECTURE.md and README for the new layout
+
+### M9 — Config & test coverage
+ADRs [0004](adr/0004-validation-at-trust-boundaries.md), [0005](adr/0005-typed-env-module.md), [0006](adr/0006-unit-test-coverage-threshold.md).
+- `shared/config/env.ts` (server-only) and `shared/config/site.ts`; no other `process.env` reads
+- Trust-boundary guards reviewed against ADR 0004, each with unit tests
+- Vitest coverage (`@vitest/coverage-v8`), 80% lines on entities, proxy and pure logic, enforced in CI
