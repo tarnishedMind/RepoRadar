@@ -20,7 +20,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 | Hover prefetch | repo cards | `queryClient.prefetchQuery` on hover, plus `<Link>` prefetch |
 | Watchlist / stars | `/watchlist` | Server Actions, `useOptimistic` and TanStack optimistic mutations with rollback, cookie-backed storage |
 | Rate limit & locale guard | `src/proxy.ts` | Proxy (formerly middleware): request headers, redirects, lightweight rate-limit header surfacing |
-| API layer | `src/lib/github` | Typed fetch wrapper, `cacheLife` / `cacheTag`, optional `GITHUB_TOKEN` for higher limits |
+| API layer | `src/entities/github` | Typed fetch wrapper, `cacheLife` / `cacheTag`, optional `GITHUB_TOKEN` for higher limits |
 
 ## Phases
 
@@ -30,7 +30,7 @@ unique; phases group them.
 | Phase | Goal | Milestones | Status |
 | --- | --- | --- | --- |
 | 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
-| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core | M8–M9 | In progress |
+| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core, consistent formatting | M8–M10 | ✅ Done |
 
 Structural decisions are recorded in [docs/adr/](adr/README.md).
 
@@ -74,9 +74,9 @@ Structural decisions are recorded in [docs/adr/](adr/README.md).
 - Deployed to Vercel: https://repo-radar-eta.vercel.app/
 - README with screenshots and architecture notes
 
-## Phase 2 — Architecture & quality
+## Phase 2 — Architecture & quality ✅
 
-### M8 — Feature folders
+### M8 — Feature folders ✅
 ADRs [0002](adr/0002-feature-folder-layers.md), [0003](adr/0003-cross-feature-imports.md).
 Follow the `reporadar-refactoring` skill: small behavior-preserving steps.
 - ESLint boundary rules (`no-restricted-imports`, `import/no-cycle`)
@@ -86,8 +86,15 @@ Follow the `reporadar-refactoring` skill: small behavior-preserving steps.
 - Remove duplicated helpers (`sameRepo`, repo-name regex); data layer no longer imports from queries
 - Update ARCHITECTURE.md and README for the new layout
 
-### M9 — Config & test coverage
+### M9 — Config & test coverage ✅
 ADRs [0004](adr/0004-validation-at-trust-boundaries.md), [0005](adr/0005-typed-env-module.md), [0006](adr/0006-unit-test-coverage-threshold.md).
 - `shared/config/env.ts` (server-only) and `shared/config/site.ts`; no other `process.env` reads
 - Trust-boundary guards reviewed against ADR 0004, each with unit tests
 - Vitest coverage (`@vitest/coverage-v8`), 80% lines on entities, proxy and pure logic, enforced in CI
+
+### M10 — Formatting with Biome ✅
+ADR [0007](adr/0007-biome-formatter.md).
+- `@biomejs/biome` (exact version) as formatter only; ESLint keeps all lint rules
+- `biome.json`: 2 spaces, line width 100, git-ignored files skipped
+- `pnpm format` / `pnpm format:check`, check runs in CI before lint
+- One reformat-only commit, listed in `.git-blame-ignore-revs`

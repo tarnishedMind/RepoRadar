@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { RESERVED_SEGMENTS } from "@/lib/site";
+import { RESERVED_SEGMENTS } from "@/shared/config/site";
 
 /**
  * Proxy (called Middleware before Next 16) runs before every matching request,
@@ -33,9 +33,7 @@ export function proxy(request: NextRequest) {
 
     if (first && !RESERVED_SEGMENTS.has(first.toLowerCase())) {
       const target =
-        second === undefined
-          ? `/u/${first}`
-          : `/${first}/${second.replace(/\.git$/i, "")}`;
+        second === undefined ? `/u/${first}` : `/${first}/${second.replace(/\.git$/i, "")}`;
       if (target !== `/${original.join("/")}`) {
         // A redirect tells the browser to go to a new URL (308 = permanent, keeps method).
         return NextResponse.redirect(new URL(target, request.url), 308);

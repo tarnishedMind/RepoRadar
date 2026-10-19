@@ -1,6 +1,6 @@
 # RepoRadar architecture: Next.js for SPA developers
 
-This guide explains everything built in milestones M0 to M7, written for someone who
+This guide explains everything built in milestones M0 to M9, written for someone who
 knows single-page apps (React + a router + `useEffect` fetching) but is new to the
 Next.js App Router. Each section starts with the SPA habit, then shows what Next.js
 does instead, and where to see it in this repo.
@@ -26,7 +26,8 @@ does instead, and where to see it in this repo.
 15. [Metadata, share images, sitemap and robots](#15-metadata-share-images-sitemap-and-robots)
 16. [Reading the build output](#16-reading-the-build-output)
 17. [Testing, CI and deployment](#17-testing-ci-and-deployment)
-18. [Cheat sheet: SPA habit → Next.js equivalent](#18-cheat-sheet-spa-habit--nextjs-equivalent)
+18. [Where code lives: layers and feature folders](#18-where-code-lives-layers-and-feature-folders)
+19. [Cheat sheet: SPA habit → Next.js equivalent](#19-cheat-sheet-spa-habit--nextjs-equivalent)
 
 ---
 
@@ -67,7 +68,7 @@ Three consequences you will see everywhere in this codebase:
 
 - **Components are async and can `await` data directly.** No loading state boilerplate,
   no `useEffect`.
-- **Secrets stay on the server.** `GITHUB_TOKEN` is read in `src/lib/github/client.ts`
+- **Secrets stay on the server.** `GITHUB_TOKEN` is read in `src/entities/github/client.ts`
   and never reaches the browser.
 - **Less JavaScript.** The README renderer, language bar, stats and cards are plain
   HTML. They ship zero component JS.
@@ -94,7 +95,7 @@ flowchart TD
   search --> modal["@modal/ (parallel slot, not a URL)<br/>default.tsx · page.tsx"]
   modal --> intercept["(..)[owner]/[repo]/page.tsx<br/>intercepts /owner/repo"]
   root --> watch["watchlist/<br/>page.tsx<br/>→ /watchlist"]
-  root --> actions["actions/watchlist.ts<br/>(Server Actions, not a route)"]
+  root --> comps["_components/<br/>Providers, SiteHeader (private folder, not a route)"]
   root --> api["api/ (Route Handlers, JSON)"]
   api --> apiSearch["search/route.ts<br/>GET /api/search"]
   api --> apiRepo["repos/[owner]/[repo]/route.ts<br/>GET /api/repos/…"]
@@ -202,15 +203,17 @@ interactivity to small client leaves.**
 
 | Server Components (no JS shipped) | Client Components (`"use client"`) |
 | --- | --- |
-| `app/layout.tsx`, every `page.tsx` | `app/providers.tsx` (QueryClientProvider) |
-| `[owner]/[repo]/readme.tsx`, `languages.tsx`, `contributors.tsx` | `app/error.tsx` (error boundaries must be client) |
-| `components/repo-card.tsx`, `stat.tsx`, `site-header.tsx`, `updated-at.tsx` | `search/search-view.tsx` (input, infinite scroll) |
-| `search/page.tsx` (prefetches data) | `search/search-result-card.tsx` (hover prefetch) |
-| `@modal/(..)[owner]/[repo]/page.tsx` | `components/modal.tsx` (`<dialog>`, router.back) |
-| `watchlist/page.tsx` (reads the cookie) | `@modal/…/repo-preview.tsx` (useQuery) |
-| | `components/watch-button.tsx` (useMutation) |
-| | `components/watchlist-nav-link.tsx` (header count) |
-| | `watchlist/watchlist-items.tsx` (useOptimistic + form action) |
+| `app/layout.tsx`, every `page.tsx` | `app/_components/providers.tsx` (QueryClientProvider) |
+| `features/repo/repo-view.tsx`, `readme.tsx`, `languages.tsx`, `contributors.tsx` | `app/error.tsx` (error boundaries must be client) |
+| `entities/github/repo-card.tsx`, `shared/ui/stat.tsx`, `updated-at.tsx`, `app/_components/site-header.tsx` | `features/search/search-view.tsx` (input, infinite scroll) |
+| `features/search/prefetched-search.tsx` (prefetches data) | `features/search/search-result-card.tsx` (hover prefetch) |
+| `@modal/(..)[owner]/[repo]/page.tsx` | `shared/ui/modal.tsx` (`<dialog>`, router.back) |
+| `features/watchlist/watchlist-content.tsx` (reads the cookie) | `features/search/repo-preview.tsx` (useQuery) |
+| `features/trending`, `leaderboard`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
+| | `features/watchlist/watchlist-nav-link.tsx` (header count) |
+| | `features/watchlist/watchlist-items.tsx` (useOptimistic + form action) |
+
+Paths here are relative to `src/`. Section 18 explains the folder layout.
 
 Server Components can render Client Components and pass them props (which must be
 serializable) or even other Server Components as `children`. That is how the root
@@ -225,7 +228,7 @@ flowchart TD
   SV --> RC["SearchResultCard (client)"]
 ```
 
-`import "server-only"` at the top of `src/lib/github/client.ts` turns an accidental
+`import "server-only"` at the top of `src/entities/github/client.ts` turns an accidental
 import from a Client Component into a build error, so the token can't leak.
 
 ---
@@ -240,7 +243,7 @@ useEffect(() => { fetch(`/api/repos/${id}`).then(r => r.json()).then(setRepo) },
 if (!repo) return <Spinner />;
 ```
 
-Next.js Server Component (`src/app/[owner]/[repo]/page.tsx`):
+Next.js Server Component (`src/features/repo/repo-view.tsx`, rendered by `src/app/[owner]/[repo]/page.tsx`):
 
 ```tsx
 async function RepoView({ params }) {
@@ -254,19 +257,20 @@ async function RepoView({ params }) {
 Notes:
 
 - `params` and `searchParams` are **Promises** in Next 16. You `await` them.
-- Independent requests run in parallel with `Promise.all`. See `src/app/u/[login]/page.tsx`,
+- Independent requests run in parallel with `Promise.all`. See `src/features/user/user-profile.tsx`,
   which fetches the user and their repos together instead of one after another.
 - The loading state comes from `<Suspense fallback>` or `loading.tsx` (section 7), not
   from a `useState` flag.
 
-The data layer lives in `src/lib/github/`:
+The data layer is the GitHub entity in `src/entities/github/`. Server code imports
+`@/entities/github/server`; anything else imports the client-safe `@/entities/github`.
 
 ```mermaid
 flowchart LR
-  pages["Pages & components"] --> idx["github/index.ts<br/>getRepo, getUser, getTrendingRepos,<br/>getLanguageLeaderboard, searchRepositories<br/>('use cache' + cacheLife + cacheTag)"]
+  pages["Pages & features"] --> idx["github/server.ts → cached.ts<br/>getRepo, getUser, getTrendingRepos,<br/>getLanguageLeaderboard, searchRepositories<br/>('use cache' + cacheLife + cacheTag)"]
   idx --> client["github/client.ts<br/>fetch wrapper: token header,<br/>404 → null, rate limit → error<br/>(server-only)"]
   client --> gh[(GitHub REST API)]
-  types["github/types.ts, catalog.ts<br/>(safe to import anywhere)"] -.-> pages
+  types["github/index.ts: types, catalogs,<br/>search constants, RepoCard<br/>(safe to import anywhere)"] -.-> pages
 ```
 
 ---
@@ -397,7 +401,7 @@ skip it.
 ## 9. Route Handlers: the backend inside the app
 
 `route.ts` files are HTTP endpoints, like a small Express server living next to the
-pages. This app has three:
+pages. This app has four:
 
 | Endpoint | Used by | Why it exists |
 | --- | --- | --- |
@@ -409,7 +413,17 @@ pages. This app has three:
 For *writes* from the browser this app uses Server Actions instead of Route Handlers
 (section 13).
 
-Server Components don't need these endpoints. They call `src/lib/github` directly.
+Every input to these endpoints is untrusted, so each one goes through a small pure guard
+before it is used ([ADR 0004](adr/0004-validation-at-trust-boundaries.md)), and each guard
+has unit tests:
+
+| Endpoint | Guard | Rejects with |
+| --- | --- | --- |
+| `GET /api/search` | `parseSearchParams`, `parseSearchPage` (`features/search/search-params.ts`) | 400 for no `q` or a page past GitHub's 1,000-result cap |
+| `GET /api/repos/…` | `isRepoFullName` (`entities/github/repo-name.ts`) | 404 for names GitHub can't have |
+| `POST /api/revalidate` | `hasBearerToken` (`shared/lib/bearer-token.ts`, constant-time compare), `parseRevalidateTags` (`entities/github/tags.ts`, pattern derived from the catalogs) | 401, 400 |
+
+Server Components don't need these endpoints. They call `@/entities/github/server` directly.
 Route Handlers are only for code running in the browser or for outside callers.
 
 ---
@@ -422,7 +436,7 @@ next page on scroll, and the preview modal.
 
 ### One QueryClient per request on the server, one in the browser
 
-`src/lib/get-query-client.ts`:
+`src/shared/lib/get-query-client.ts`:
 
 - On the server, every request gets a fresh `QueryClient`, so one user's data never
   leaks into another's.
@@ -435,7 +449,7 @@ next page on scroll, and the preview modal.
 sequenceDiagram
   autonumber
   participant B as Browser
-  participant SP as search/page.tsx (server)
+  participant SP as PrefetchedSearch (server)
   participant QC as QueryClient (per request)
   participant G as GitHub
   B->>SP: GET /search?q=tanstack
@@ -449,8 +463,9 @@ sequenceDiagram
   B->>SP: GET /api/search?q=tanstack&page=2 (Route Handler)
 ```
 
-The key that makes this work is `src/lib/queries/`: the **same query key and options**
-are imported by the server page and the client component. The server overrides only
+The key that makes this work is `src/features/search/queries.ts`: the **same query key
+and options** are imported by the server prefetch and the client component. Each
+feature owns its own keys (`["search", …]`, `["repo", …]`, `["watchlist"]`). The server overrides only
 `queryFn` so it can call GitHub directly instead of its own API.
 
 ### URL as state, without server round trips
@@ -485,7 +500,7 @@ same search, and that path goes through the server prefetch again.
 - **Pages you leave are kept, not destroyed.** With Cache Components, Next hides the
   previous route with React `<Activity>` (it's `display: none`, state intact). Pressing
   Back restores it exactly: scroll position, input text, results. Up to 3 routes are kept.
-  This is why `components/modal.tsx` opens the `<dialog>` in a layout effect and closes it
+  This is why `shared/ui/modal.tsx` opens the `<dialog>` in a layout effect and closes it
   in the cleanup: hiding a route runs cleanup, showing it again runs the effect.
 
 ---
@@ -531,7 +546,7 @@ that starts with `"use server"`, import it into a Client Component and call it l
 function. Next turns each one into a POST endpoint behind the scenes and handles the
 serialization.
 
-`src/app/actions/watchlist.ts`:
+`src/features/watchlist/actions.ts`:
 
 ```ts
 "use server";
@@ -546,8 +561,10 @@ export async function setWatched(fullName: string, watched: boolean) {
 
 Things to know:
 
-- **It's a public endpoint.** Anyone can call it with any arguments, so it validates
-  `fullName` against a pattern and caps the list at 50 entries.
+- **It's a public endpoint.** Anyone can call it with any arguments, whatever the
+  TypeScript types say. So the parameters are typed `unknown`, and the pure
+  `toggleWatched` (`features/watchlist/list.ts`) checks `fullName` against GitHub's name
+  rules, requires a real boolean and caps the list at 50 entries.
 - **Return errors, don't throw them.** In production Next hides thrown error messages.
   The action returns `{ ok: false, error }` so the "watchlist is full" message reaches
   the user.
@@ -557,7 +574,7 @@ Things to know:
 ### Where the data lives
 
 The watchlist is a JSON array of `"owner/repo"` names in an `httpOnly` cookie
-(`src/lib/watchlist.ts`). No database or login needed, and every request carries it, so
+(`src/features/watchlist/storage.ts`). No database or login needed, and every request carries it, so
 Server Components can read it with `cookies()`. Reading `cookies()` makes that part of
 the page per-request, so it must be inside `<Suspense>`.
 
@@ -566,7 +583,7 @@ the page per-request, so it must be inside `<Suspense>`.
 Optimistic UI means updating the screen before the server confirms, and undoing it if
 the server fails. The app shows both ways to do it.
 
-**1. TanStack Query mutation** (`components/watch-button.tsx`, used on the repo page,
+**1. TanStack Query mutation** (`features/watchlist/watch-button.tsx`, used on the repo page,
 search cards and the preview modal):
 
 ```mermaid
@@ -593,7 +610,7 @@ sequenceDiagram
 All watch buttons and the header counter read the same cache key, so a click anywhere
 updates all of them at once.
 
-**2. React `useOptimistic` with a form** (`watchlist/watchlist-items.tsx`, the Remove
+**2. React `useOptimistic` with a form** (`features/watchlist/watchlist-items.tsx`, the Remove
 buttons on `/watchlist`):
 
 ```mermaid
@@ -635,7 +652,7 @@ The first client render then said "enabled" while the server HTML said "disabled
 React doesn't fix mismatched attributes during hydration, so the button stayed disabled
 forever.
 
-The fix is `src/hooks/use-hydrated.ts`: it returns `false` during SSR and the hydration
+The fix is `src/shared/hooks/use-hydrated.ts`: it returns `false` during SSR and the hydration
 render, `true` afterwards. Components that depend on browser-only data render the server
 version first, then update. Use the same trick for anything based on `localStorage`,
 the current time, or other data the server can't know.
@@ -689,7 +706,7 @@ Things to know:
 - **Redirects only for GET/HEAD.** Server Actions arrive as POST requests to the current
   page's URL and must pass through untouched.
 - **Reserved names** (`u`, `trending`, `languages`, `search`, `watchlist`, `api`) live in
-  `src/lib/site.ts`. A GitHub user literally named `trending` can't get a short URL, but
+  `src/shared/config/site.ts`. A GitHub user literally named `trending` can't get a short URL, but
   `/u/trending` still works.
 - `X-Robots-Tag: noindex` is a response header that tells search engines not to index
   search results or someone's personal watchlist.
@@ -712,7 +729,7 @@ Instead of managing `<title>` with a library, pages export metadata:
 - Child metadata is merged over parent metadata, but nested objects like `openGraph` are
   replaced, not deep-merged.
 
-`metadataBase` (from `src/lib/site.ts`) turns relative URLs into absolute ones, which
+`metadataBase` (from `src/shared/config/site.ts`) turns relative URLs into absolute ones, which
 social networks require. It uses `NEXT_PUBLIC_SITE_URL`, then Vercel's production
 domain, then `http://localhost:3000`.
 
@@ -744,7 +761,7 @@ sequenceDiagram
 Next adds the `og:image` and `twitter:image` tags automatically because the file exists;
 pages don't reference it. `ImageResponse` uses a different renderer than the browser
 (Satori): only flexbox layout and inline `style` objects, no Tailwind classes. The shared
-layout is `src/components/og/og-card.tsx`.
+layout is `src/shared/ui/og-card.tsx`.
 
 ### Sitemap and robots
 
@@ -788,16 +805,24 @@ browser tests check that the Next.js features work together in a real production
 | Where | `src/**/*.test.ts` next to the code | `e2e/smoke.spec.ts` |
 | Runs against | Plain functions in Node | `next start` serving a production build, in Chrome |
 | Network | None: `fetch` and `next/headers` are mocked | Real GitHub API |
-| Covers | GitHub client (404, rate limits, retries, one-at-a-time search), search param parsing, infinite-scroll paging, watchlist cookie validation, every proxy redirect and rewrite | Home search via `next/form`, repo page + OG tag, intercepted modal open/close, full page on direct load, watchlist add/remove, proxy URLs, 404 |
+| Covers | GitHub client (404, rate limits, retries, one-at-a-time search), repo-name checks, search param parsing, trending range parsing, infinite-scroll paging, watchlist cookie validation, every proxy redirect and rewrite | Home search via `next/form`, repo page + OG tag, intercepted modal open/close, full page on direct load, watchlist add/remove, proxy URLs, 404 |
 | Command | `pnpm test` | `pnpm build && pnpm test:e2e` |
 
-Three details worth knowing:
+`pnpm test` also measures coverage
+([ADR 0006](adr/0006-unit-test-coverage-threshold.md)) and fails below **80% of lines**
+for `src/entities/**`, `src/proxy.ts` and the `.ts` modules in `src/features/**`. UI
+(`.tsx`), entry files, Server Actions and Route Handlers are left out: the smoke tests
+cover them. The HTML report lands in `coverage/`.
+
+Four details worth knowing:
 
 - `server-only` throws outside a Next.js server bundle, so `vitest.config.mts` swaps it
   for an empty module in tests.
 - The proxy is just a function that takes a `NextRequest` and returns a `NextResponse`,
   so its tests build requests and inspect the response: `status` and `location` for
   redirects, the `x-middleware-rewrite` header for rewrites.
+- Environment variables are read through functions in `shared/config/env.ts`
+  (`env.githubToken()`), not captured at import time, so `vi.stubEnv` works in tests.
 - Smoke tests run against a **production** build on purpose. Caching, ISR, prerendering
   and Activity behave differently in `next dev`.
 
@@ -807,7 +832,7 @@ Three details worth knowing:
 flowchart LR
   dev["git push / pull request"] --> gh[(GitHub repo)]
   gh --> ci["GitHub Actions (.github/workflows/ci.yml)"]
-  ci --> j1["Job 1: lint · typecheck · unit tests"]
+  ci --> j1["Job 1: format check · lint · typecheck · unit tests"]
   ci --> j2["Job 2: next build · Playwright smoke tests"]
   gh --> v["Vercel GitHub integration"]
   v -- "pull request / branch" --> prev["Preview deployment<br/>(own URL, linked on the PR)"]
@@ -838,11 +863,73 @@ the step-by-step setup.
 
 ---
 
-## 18. Cheat sheet: SPA habit → Next.js equivalent
+## 18. Where code lives: layers and feature folders
+
+An SPA often groups files by kind: `components/`, `hooks/`, `services/`. That works until
+one feature is spread over five folders. Since M8 RepoRadar groups code by **feature**,
+in four layers that only import downward ([ADR 0002](adr/0002-feature-folder-layers.md)):
+
+```mermaid
+flowchart TD
+  app["app/<br/>routing files only: page, layout, route, metadata<br/>_components/: Providers, SiteHeader"]
+  features["features/<br/>repo · search · watchlist · trending · leaderboard · user"]
+  entities["entities/github/<br/>client, cached getters, tags, types, catalogs, RepoCard"]
+  shared["shared/<br/>ui · lib · hooks · config (no domain knowledge)"]
+  app --> features --> entities --> shared
+  app --> entities
+  app --> shared
+  features --> shared
+```
+
+Each feature (and the GitHub entity) has two entry points:
+
+| File | What it exports | Who may import it |
+| --- | --- | --- |
+| `index.ts` | Client-safe API: client components, query options, pure helpers, types | Anyone above it, including `"use client"` files |
+| `server.ts` | Server-only API (`import "server-only"`): async Server Components, cached reads, cookie storage | Server code only |
+
+Two files, because a single barrel that re-exports server-only code would break the build
+the moment a Client Component imports it. Everything else in a feature folder is
+private and imported only by its siblings, with relative paths.
+
+A route file stays thin. `/trending` for example only knows about routing:
+
+```tsx
+// src/app/trending/[[...range]]/page.tsx
+export default function TrendingPage({ params }: Props) {
+  return (
+    <main>
+      <h1>Trending</h1>
+      <Suspense fallback={<TrendingSkeleton />}>
+        <TrendingList params={params} />   {/* from @/features/trending/server */}
+      </Suspense>
+    </main>
+  );
+}
+```
+
+`generateStaticParams`, `generateMetadata` and the `<Suspense>` boundaries stay in the
+route file, because they describe routing and streaming.
+
+Features may use each other, but only through the public entry point
+([ADR 0003](adr/0003-cross-feature-imports.md)): search cards and the repo page import
+`WatchButton` from `@/features/watchlist`, and the search preview modal imports
+`repoQueryOptions` from `@/features/repo`. The dependency only goes one way; if two
+features ever need each other, the shared part moves down to `entities` or `shared`.
+
+ESLint enforces all of this (`eslint.config.mjs`), so a wrong import fails `pnpm lint`:
+
+| Rule | Catches |
+| --- | --- |
+| `no-restricted-imports` | Deep imports like `@/features/watchlist/storage`, anything importing `@/app`, entities importing features, shared importing features or entities, `../` imports between folders |
+| `import/no-cycle` | Two modules (or features) importing each other, directly or through a chain |
+
+## 19. Cheat sheet: SPA habit → Next.js equivalent
 
 | SPA habit | In this project |
 | --- | --- |
 | `react-router` route config | Folders in `src/app` |
+| `components/`, `hooks/`, `services/` folders | Feature folders with a public `index.ts` / `server.ts`, lint-enforced layers |
 | `useEffect` + `fetch` + loading state | `async` Server Component + `<Suspense>` |
 | API keys in `.env` exposed to the bundle | `process.env.GITHUB_TOKEN` read only on the server (`server-only`) |
 | Global spinner | `loading.tsx` or a `<Suspense fallback>` per section |

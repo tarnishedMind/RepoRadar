@@ -5,9 +5,7 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   images: {
     // Object form (not `new URL(...)`) so GitHub's `?v=4` query string is allowed.
-    remotePatterns: [
-      { protocol: "https", hostname: "avatars.githubusercontent.com" },
-    ],
+    remotePatterns: [{ protocol: "https", hostname: "avatars.githubusercontent.com" }],
   },
   turbopack: {
     rules: {

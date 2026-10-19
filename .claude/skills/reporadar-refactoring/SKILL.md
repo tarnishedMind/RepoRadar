@@ -17,7 +17,7 @@ Read `reporadar-architecture` first; it is the definition of "better".
    Work on the current feature branch; don't create or switch branches unasked.
 2. Record a baseline, so you can tell a regression from a pre-existing failure:
    ```sh
-   pnpm lint && pnpm typecheck && pnpm test
+   pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
    pnpm build 2>&1 | tee /tmp/reporadar-build-before.txt
    pnpm test:e2e
    ```
@@ -35,13 +35,14 @@ For each step:
    Never mix a refactor with a fix or feature. If you find a bug, note it and
    leave it for a separate step Oleg approves.
 2. Keep public surfaces stable unless the step is about them: URLs, route
-   folder names, `queryKeys`, cache `tags`, `cacheLife` profiles, Server Action
+   folder names, query keys, cache `tags`, `cacheLife` profiles, Server Action
    names and return shapes, cookie name and format, `RESERVED_SEGMENTS`, the
    proxy `matcher`.
 3. Move tests with the code they test and update imports; don't weaken
    assertions to make them pass.
 4. Verify, in this order, stopping at the first failure:
    ```sh
+   pnpm format           # Biome; formatting is never a separate review topic
    pnpm lint
    pnpm typecheck        # runs next typegen first
    pnpm test
@@ -51,7 +52,7 @@ For each step:
    Lint, typecheck and unit tests run after every step. Build + e2e run after
    every step that touches `src/app/**`, `src/proxy.ts`, the GitHub entity's cached getters,
    the query client setup, `next.config.ts`, or anything with `"use client"` /
-   `"use server"` / `"use cache"`. For pure `lib/` moves covered by unit tests,
+   `"use server"` / `"use cache"`. For pure-module moves covered by unit tests,
    build + e2e can wait until the end of a group of steps.
 5. If a check fails and the cause isn't obvious in a couple of tries, revert the
    step (`git restore` / `git checkout -- <files>` on your own uncommitted changes)
@@ -60,6 +61,9 @@ For each step:
    run `git commit` or `git push` yourself unless he says so for that step.
 
 ## 3. Feature-folder migration order
+
+Done in M8, except step 7 and `shared/config/env.ts` (both M9). Kept as the
+reference for how a migration like this is sequenced.
 
 Move in this order so every step builds and each layer exists before
 something depends on it. One bullet is one step (or a few small ones).
@@ -102,7 +106,7 @@ change import paths only; any code change inside a moved file is its own step.
   Changing parameter order or shape silently invalidates and can split caches.
   Keep `tags.*` output identical (lowercased).
 - **Query key parity.** Server prefetch and client hooks must build keys from the
-  same `queryKeys` and `parseSearchParams`. A mismatch shows up as a client
+  same `xQueryKey` helpers and `parseSearchParams`. A mismatch shows up as a client
   refetch after hydration, not as an error; check the Network tab or e2e.
 - **Static shell.** Awaiting `params`/`searchParams` outside `<Suspense>`, or
   moving `cookies()` / `connection()` / `dehydrate()` out of a Suspense boundary,

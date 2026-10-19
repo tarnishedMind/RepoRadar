@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
-import { OgCard, ogSize } from "@/components/og/og-card";
-import { formatCount } from "@/lib/format";
-import { getUser } from "@/lib/github";
+import { OgCard, ogSize } from "@/shared/ui/og-card";
+import { formatCount } from "@/shared/lib/format";
+import { getUser } from "@/entities/github/server";
 
 export const alt = "GitHub profile on RepoRadar";
 export const size = ogSize;

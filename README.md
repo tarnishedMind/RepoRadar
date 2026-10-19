@@ -29,6 +29,21 @@ updates.
 | GitHub-style URLs (`/vercel/next.js.git`, `/@torvalds`) | `proxy.ts` redirects, rewrites and headers |
 | Link previews, SEO | `opengraph-image.tsx` (generated with `next/og`), `sitemap.ts`, `robots.ts` |
 
+## Project structure
+
+```
+src/
+  app/        routing only (pages, layouts, Route Handlers, metadata files)
+  features/   repo · search · watchlist · trending · leaderboard · user
+  entities/   github: API client, cached reads, cache tags, types, catalogs
+  shared/     ui · lib · hooks · config, with no domain knowledge
+  proxy.ts
+```
+
+Layers only import downward (`app → features → entities → shared`), and each feature is
+used only through its `index.ts` (client-safe) or `server.ts` (server-only). ESLint
+enforces both. The decisions behind this are in [docs/adr/](docs/adr/README.md).
+
 The full walkthrough, written for developers coming from single-page apps and with
 diagrams for every flow, is in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. The
 milestone plan is in [docs/PLAN.md](docs/PLAN.md).
@@ -36,7 +51,7 @@ milestone plan is in [docs/PLAN.md](docs/PLAN.md).
 ## Stack
 
 Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · TanStack Query v5 · Vitest ·
-Playwright · pnpm · Node 22 · Vercel
+Playwright · Biome · pnpm · Node 22 · Vercel
 
 ## Getting started
 
@@ -51,6 +66,9 @@ Open http://localhost:3000.
 
 ### Environment variables
 
+Server-only variables are read only in `src/shared/config/env.ts`, public ones only in
+`src/shared/config/site.ts`. Empty values count as unset.
+
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `GITHUB_TOKEN` | Recommended | Raises the GitHub API limit from 60 to 5,000 requests an hour. A fine-grained token with "Public repositories" access and no permissions is enough. |
@@ -63,9 +81,10 @@ Open http://localhost:3000.
 | --- | --- |
 | `pnpm dev` | Dev server (Turbopack) |
 | `pnpm build` / `pnpm start` | Production build and server. Caching and ISR only behave for real here. |
-| `pnpm lint` | ESLint |
+| `pnpm format` / `pnpm format:check` | Format with Biome / check formatting (CI runs the check) |
+| `pnpm lint` | ESLint, including the layer and import-boundary rules |
 | `pnpm typecheck` | Generate route types, then `tsc` |
-| `pnpm test` | Unit tests (Vitest): GitHub client, search params, query options, watchlist cookie, proxy |
+| `pnpm test` | Unit tests (Vitest) with coverage: GitHub client and cached reads, input guards, search params, query options, watchlist list and cookie, config, proxy. Fails below 80% of lines on core logic. |
 | `pnpm test:e2e` | Smoke tests (Playwright) against a production build. Run `pnpm build` first. Uses your installed Chrome locally. |
 
 ## Testing and CI
@@ -76,9 +95,9 @@ Open http://localhost:3000.
   search, the preview modal, watchlist, proxy redirects and the 404 page. They use the
   real GitHub API.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs on every push to `main` and every
-  pull request: lint, typecheck and unit tests in one job; build and smoke tests in
-  another. The build uses the workflow's built-in `GITHUB_TOKEN`, so no extra secret is
-  needed.
+  pull request: format check, lint, typecheck and unit tests in one job; build and smoke
+  tests in another. The build uses the workflow's built-in `GITHUB_TOKEN`, so no extra
+  secret is needed.
 
 ## Deploying to Vercel
 

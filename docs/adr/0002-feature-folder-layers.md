@@ -1,6 +1,6 @@
 # 0002. Feature folders with four import layers
 
-**Status:** Accepted (2026-10-18)
+**Status:** Accepted (2026-10-18), implemented in M8 (2026-10-19)
 
 ## Context
 

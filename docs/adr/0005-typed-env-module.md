@@ -1,6 +1,6 @@
 # 0005. One typed module for environment variables
 
-**Status:** Accepted (2026-10-18)
+**Status:** Accepted (2026-10-18), implemented in M9 (2026-10-19)
 
 ## Context
 

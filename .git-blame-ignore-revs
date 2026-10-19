@@ -1,0 +1,5 @@
+# Formatting-only commits, skipped by `git blame` (GitHub reads this file
+# automatically; locally run: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# M10: applied Biome formatting
+d0d91c9c0a1507de19e26fbb23104dfaf36b2142

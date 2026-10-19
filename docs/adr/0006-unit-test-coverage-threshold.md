@@ -1,6 +1,6 @@
 # 0006. Unit test coverage threshold for core logic
 
-**Status:** Accepted (2026-10-18)
+**Status:** Accepted (2026-10-18), implemented in M9 (2026-10-19)
 
 ## Context
 
