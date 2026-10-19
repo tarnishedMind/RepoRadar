@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { GitHubError, getRepo } from "@/lib/github";
+import { GitHubError, getRepo } from "@/entities/github/server";
 
 /** Repo details for client-side prefetching (hover) and the preview modal. */
 export async function GET(

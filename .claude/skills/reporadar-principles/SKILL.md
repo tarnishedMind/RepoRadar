@@ -74,14 +74,16 @@ features/watchlist/
 
 ## 3. Enforcement (ESLint, no new dependencies)
 
-Added to `eslint.config.mjs` with built-in `no-restricted-imports` and
+Configured in `eslint.config.mjs` with built-in `no-restricted-imports` and
 `import/no-cycle` (eslint-plugin-import ships with eslint-config-next):
 
-- Everywhere: forbid `@/features/*/*` except `@/features/*/server`.
-- `src/shared/**`: forbid `@/app/**`, `@/features/**`, `@/entities/**`.
-- `src/entities/**`: forbid `@/app/**`, `@/features/**`.
-- `src/features/**`: forbid `@/app/**`.
-- `import/no-cycle` on `src/**`.
+- Everywhere in `src/`: forbid `@/features/*/*` except `@/features/*/server`,
+  the same for `@/entities/*/*`, and any import from `@/app`.
+- `src/features/**`, `src/entities/**`, `src/shared/**`: forbid `../` imports,
+  so every cross-folder import goes through `@/` where the rules can see it.
+- `src/entities/**`: also forbid `@/features/**`.
+- `src/shared/**`: also forbid `@/features/**` and `@/entities/**`.
+- `import/no-cycle` on `src/**` (resolves `@/` through the TypeScript resolver).
 - `server-only` stays the hard guard for secrets and cookies.
 
 If a rule blocks a legitimate change, change the structure or ask Oleg. Don't

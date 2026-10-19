@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
-import { LANGUAGES, TRENDING_RANGES } from "@/lib/github/catalog";
-import { siteUrl } from "@/lib/site";
+import { LANGUAGES, TRENDING_RANGES } from "@/entities/github";
+import { siteUrl } from "@/shared/config/site";
 
 // Served at /sitemap.xml. Lists the pages worth indexing; repo and user pages
 // are discovered by crawlers through links from these.

@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
-import { OgCard, ogSize } from "@/components/og/og-card";
-import { formatCount } from "@/lib/format";
-import { getRepo } from "@/lib/github";
+import { OgCard, ogSize } from "@/shared/ui/og-card";
+import { formatCount } from "@/shared/lib/format";
+import { getRepo } from "@/entities/github/server";
 
 // Generated per repository from the same cached getRepo() the page uses, so
 // rendering the image doesn't cost an extra GitHub request.

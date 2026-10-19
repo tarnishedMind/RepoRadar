@@ -1,11 +1,7 @@
-import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { Suspense } from "react";
-import { searchRepositories } from "@/lib/github";
-import { getQueryClient } from "@/lib/get-query-client";
-import { parseSearchParams, searchReposInfiniteOptions } from "@/lib/queries";
-import { SearchSkeleton, SearchView } from "./search-view";
+import { SearchSkeleton, parseSearchParams } from "@/features/search";
+import { PrefetchedSearch } from "@/features/search/server";
 
 type Props = PageProps<"/search">;
 
@@ -22,33 +18,5 @@ export default function SearchPage({ searchParams }: Props) {
         <PrefetchedSearch searchParams={searchParams} />
       </Suspense>
     </main>
-  );
-}
-
-/**
- * Fetches the first page on the server, then hands TanStack Query's cache to
- * the client via <HydrationBoundary>. The client renders instantly from that
- * cache and takes over for further pages and new queries.
- */
-async function PrefetchedSearch({ searchParams }: Pick<Props, "searchParams">) {
-  // Search results are per-request: opt this subtree out of prerendering.
-  // (TanStack Query stamps cache entries with Date.now(), which Next would
-  // otherwise flag while prerendering.)
-  await connection();
-  const params = parseSearchParams(await searchParams);
-  const queryClient = getQueryClient();
-
-  if (params.q) {
-    await queryClient.prefetchInfiniteQuery({
-      ...searchReposInfiniteOptions(params),
-      // Same key as the client, but call GitHub directly instead of our own API.
-      queryFn: ({ pageParam }) => searchRepositories(params, pageParam),
-    });
-  }
-
-  return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <SearchView />
-    </HydrationBoundary>
   );
 }

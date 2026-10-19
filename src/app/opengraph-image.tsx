@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { OgCard, ogSize } from "@/components/og/og-card";
+import { OgCard, ogSize } from "@/shared/ui/og-card";
 
 // Default share image for every page that doesn't define its own.
 export const alt = "RepoRadar: explore GitHub repositories and what's trending";

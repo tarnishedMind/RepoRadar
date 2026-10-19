@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
-import { GitHubError, searchRepositories } from "@/lib/github";
-import { SEARCH_MAX_RESULTS, SEARCH_PER_PAGE, parseSearchParams } from "@/lib/queries";
+import { SEARCH_MAX_RESULTS, SEARCH_PER_PAGE } from "@/entities/github";
+import { GitHubError, searchRepositories } from "@/entities/github/server";
+import { parseSearchParams } from "@/features/search";
 
 /** Backs the client-side infinite query. Keeps the GitHub token on the server. */
 export async function GET(request: NextRequest) {

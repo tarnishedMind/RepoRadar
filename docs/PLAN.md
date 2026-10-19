@@ -20,7 +20,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 | Hover prefetch | repo cards | `queryClient.prefetchQuery` on hover, plus `<Link>` prefetch |
 | Watchlist / stars | `/watchlist` | Server Actions, `useOptimistic` and TanStack optimistic mutations with rollback, cookie-backed storage |
 | Rate limit & locale guard | `src/proxy.ts` | Proxy (formerly middleware): request headers, redirects, lightweight rate-limit header surfacing |
-| API layer | `src/lib/github` | Typed fetch wrapper, `cacheLife` / `cacheTag`, optional `GITHUB_TOKEN` for higher limits |
+| API layer | `src/entities/github` | Typed fetch wrapper, `cacheLife` / `cacheTag`, optional `GITHUB_TOKEN` for higher limits |
 
 ## Phases
 
@@ -30,7 +30,7 @@ unique; phases group them.
 | Phase | Goal | Milestones | Status |
 | --- | --- | --- | --- |
 | 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
-| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core | M8–M9 | In progress |
+| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core | M8–M9 | In progress (M8 ✅) |
 
 Structural decisions are recorded in [docs/adr/](adr/README.md).
 
@@ -76,7 +76,7 @@ Structural decisions are recorded in [docs/adr/](adr/README.md).
 
 ## Phase 2 — Architecture & quality
 
-### M8 — Feature folders
+### M8 — Feature folders ✅
 ADRs [0002](adr/0002-feature-folder-layers.md), [0003](adr/0003-cross-feature-imports.md).
 Follow the `reporadar-refactoring` skill: small behavior-preserving steps.
 - ESLint boundary rules (`no-restricted-imports`, `import/no-cycle`)

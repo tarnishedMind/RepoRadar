@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { Modal } from "@/components/modal";
-import { RepoPreview, RepoPreviewSkeleton } from "./repo-preview";
+import { RepoPreview, RepoPreviewSkeleton } from "@/features/search";
+import { Modal } from "@/shared/ui/modal";
 
 // `(..)` intercepts the root-level /[owner]/[repo] route one segment above
 // /search, but only for client-side navigations that start inside /search.

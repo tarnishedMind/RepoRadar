@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { RESERVED_SEGMENTS } from "@/lib/site";
+import { RESERVED_SEGMENTS } from "@/shared/config/site";
 
 /**
  * Proxy (called Middleware before Next 16) runs before every matching request,
