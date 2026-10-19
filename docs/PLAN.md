@@ -30,7 +30,7 @@ unique; phases group them.
 | Phase | Goal | Milestones | Status |
 | --- | --- | --- | --- |
 | 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
-| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core, consistent formatting | M8–M10 | In progress (M8, M9 ✅) |
+| 2. Architecture & quality | Predictable structure, enforced boundaries, tested core, consistent formatting | M8–M10 | ✅ Done |
 
 Structural decisions are recorded in [docs/adr/](adr/README.md).
 
@@ -74,7 +74,7 @@ Structural decisions are recorded in [docs/adr/](adr/README.md).
 - Deployed to Vercel: https://repo-radar-eta.vercel.app/
 - README with screenshots and architecture notes
 
-## Phase 2 — Architecture & quality
+## Phase 2 — Architecture & quality ✅
 
 ### M8 — Feature folders ✅
 ADRs [0002](adr/0002-feature-folder-layers.md), [0003](adr/0003-cross-feature-imports.md).
@@ -92,7 +92,7 @@ ADRs [0004](adr/0004-validation-at-trust-boundaries.md), [0005](adr/0005-typed-e
 - Trust-boundary guards reviewed against ADR 0004, each with unit tests
 - Vitest coverage (`@vitest/coverage-v8`), 80% lines on entities, proxy and pure logic, enforced in CI
 
-### M10 — Formatting with Biome
+### M10 — Formatting with Biome ✅
 ADR [0007](adr/0007-biome-formatter.md).
 - `@biomejs/biome` (exact version) as formatter only; ESLint keeps all lint rules
 - `biome.json`: 2 spaces, line width 100, git-ignored files skipped
