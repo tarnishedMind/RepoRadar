@@ -832,7 +832,7 @@ Four details worth knowing:
 flowchart LR
   dev["git push / pull request"] --> gh[(GitHub repo)]
   gh --> ci["GitHub Actions (.github/workflows/ci.yml)"]
-  ci --> j1["Job 1: lint · typecheck · unit tests"]
+  ci --> j1["Job 1: format check · lint · typecheck · unit tests"]
   ci --> j2["Job 2: next build · Playwright smoke tests"]
   gh --> v["Vercel GitHub integration"]
   v -- "pull request / branch" --> prev["Preview deployment<br/>(own URL, linked on the PR)"]

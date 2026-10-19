@@ -51,7 +51,7 @@ milestone plan is in [docs/PLAN.md](docs/PLAN.md).
 ## Stack
 
 Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · TanStack Query v5 · Vitest ·
-Playwright · pnpm · Node 22 · Vercel
+Playwright · Biome · pnpm · Node 22 · Vercel
 
 ## Getting started
 
@@ -81,6 +81,7 @@ Server-only variables are read only in `src/shared/config/env.ts`, public ones o
 | --- | --- |
 | `pnpm dev` | Dev server (Turbopack) |
 | `pnpm build` / `pnpm start` | Production build and server. Caching and ISR only behave for real here. |
+| `pnpm format` / `pnpm format:check` | Format with Biome / check formatting (CI runs the check) |
 | `pnpm lint` | ESLint, including the layer and import-boundary rules |
 | `pnpm typecheck` | Generate route types, then `tsc` |
 | `pnpm test` | Unit tests (Vitest) with coverage: GitHub client and cached reads, input guards, search params, query options, watchlist list and cookie, config, proxy. Fails below 80% of lines on core logic. |
@@ -94,9 +95,9 @@ Server-only variables are read only in `src/shared/config/env.ts`, public ones o
   search, the preview modal, watchlist, proxy redirects and the 404 page. They use the
   real GitHub API.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs on every push to `main` and every
-  pull request: lint, typecheck and unit tests in one job; build and smoke tests in
-  another. The build uses the workflow's built-in `GITHUB_TOKEN`, so no extra secret is
-  needed.
+  pull request: format check, lint, typecheck and unit tests in one job; build and smoke
+  tests in another. The build uses the workflow's built-in `GITHUB_TOKEN`, so no extra
+  secret is needed.
 
 ## Deploying to Vercel
 

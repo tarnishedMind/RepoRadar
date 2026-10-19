@@ -17,7 +17,7 @@ Read `reporadar-architecture` first; it is the definition of "better".
    Work on the current feature branch; don't create or switch branches unasked.
 2. Record a baseline, so you can tell a regression from a pre-existing failure:
    ```sh
-   pnpm lint && pnpm typecheck && pnpm test
+   pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
    pnpm build 2>&1 | tee /tmp/reporadar-build-before.txt
    pnpm test:e2e
    ```
@@ -42,6 +42,7 @@ For each step:
    assertions to make them pass.
 4. Verify, in this order, stopping at the first failure:
    ```sh
+   pnpm format           # Biome; formatting is never a separate review topic
    pnpm lint
    pnpm typecheck        # runs next typegen first
    pnpm test

@@ -146,6 +146,10 @@ pages don't need it.
 Tailwind v4 utility classes inline, zinc palette, `dark:` variants on every
 coloured surface. `next/image` for avatars (host allowed in `next.config.ts`).
 
+Formatting is Biome's job (ADR 0007): run `pnpm format` before handing work
+over and never hand-format against it. Biome only formats; lint rules live in
+ESLint. Tailwind class order is not enforced.
+
 ## 9. Testing expectations
 
 - Unit tests (Vitest, Node env) sit next to the code as `*.test.ts`, for logic in
