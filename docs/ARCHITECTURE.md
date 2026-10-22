@@ -215,6 +215,7 @@ interactivity to small client leaves.**
 | `features/trending`, `leaderboard`, `fields`, `find`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
 | | `features/watchlist/watchlist-nav-link.tsx` (header count) |
 | | `features/watchlist/watchlist-items.tsx` (useOptimistic + form action) |
+| | `features/find/find-history.tsx` (localStorage via useSyncExternalStore) |
 
 Paths here are relative to `src/`. Section 18 explains the folder layout.
 
@@ -425,6 +426,23 @@ new request show its skeleton instead of the previous results.
 Both model calls are `"use cache"` functions keyed on the normalized request, so a
 repeated request costs no quota. Model output is untrusted and validated by pure guards,
 and every failure falls back to keyword search ([ADR 0008](adr/0008-llm-output-is-untrusted-input.md)).
+
+### Browser-only state: the `/find` history
+
+Recent requests (M13) live in `localStorage`, because the server never needs them. That
+is the case `useSyncExternalStore` exists for: a store outside React that React subscribes
+to (`features/find/history-store.ts`).
+
+- `subscribe` listens to the `storage` event (fired in *other* tabs) plus a custom event
+  this tab dispatches after its own writes, so every open tab stays in sync.
+- `getSnapshot` must return the same array while nothing changed, or React re-renders
+  forever; the store caches the parsed value by the raw string.
+- `getServerSnapshot` returns an empty list. The server renders no history and the client
+  fills it in right after hydration, so there's no hydration mismatch.
+- What comes back from `localStorage` is user-editable, so it goes through `parseHistory`
+  like any other untrusted input.
+
+Compare with the watchlist (section 13), which uses a cookie because the server renders it.
 
 ---
 

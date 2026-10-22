@@ -16,7 +16,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 | Trending | `/trending/[[...range]]` | ISR (`revalidate`), `generateStaticParams` for daily/weekly/monthly |
 | Language leaderboards | `/languages/[lang]` | ISR + `cacheTag`, on-demand revalidation via `POST /api/revalidate` route handler (secret-protected, `revalidateTag`) |
 | Repos by field | `/fields/[field]` | Parallel cached fan-out (`Promise.all` of searches inside one `"use cache"` read), ISR + `generateStaticParams`, per-field OG image |
-| Describe it | `/find?q=…` | `next/form` GET search, nested `<Suspense>` streaming (repos first, AI reasons after), `"use cache"` around an LLM call, untrusted model output validated at the boundary, graceful fallback |
+| Describe it | `/find?q=…` | `next/form` GET search, nested `<Suspense>` streaming (repos first, AI reasons after), `"use cache"` around an LLM call, untrusted model output validated at the boundary, graceful fallback, request history in `localStorage` via `useSyncExternalStore` |
 | Search | `/search` | TanStack Query `useInfiniteQuery` infinite scroll, URL-synced filters, server prefetch + `HydrationBoundary` |
 | Repo preview modal | `@modal/(..)[owner]/[repo]` | Parallel routes + intercepting routes: modal on soft nav, full page on hard nav/refresh |
 | Hover prefetch | repo cards | `queryClient.prefetchQuery` on hover, plus `<Link>` prefetch |
@@ -33,7 +33,7 @@ unique; phases group them.
 | --- | --- | --- | --- |
 | 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
 | 2. Architecture & quality | Predictable structure, enforced boundaries, tested core, consistent formatting | M8–M10 | ✅ Done |
-| 3. Discovery | New ways to find repositories, as separate routes next to the existing ones | M11–M12 | ✅ Done |
+| 3. Discovery | New ways to find repositories, as separate routes next to the existing ones | M11–M13 | ✅ Done |
 
 Structural decisions are recorded in [docs/adr/](adr/README.md).
 
@@ -165,3 +165,14 @@ request into GitHub search; GitHub still does the searching.
   README updated
 - Fix found while testing: field links no longer prefetch (opening `/fields` fired up to
   36 GitHub searches and hit the search rate limit); `/find` example links don't either
+
+### M13 — Find history ✅
+Recent `/find` requests for quick access, kept per browser.
+- Last 10 requests as chips under the form; clicking one reopens it instantly (results
+  are cached server-side by normalized request, so no AI quota is spent)
+- Remove a single entry (×) or clear all; repeats move to the top instead of duplicating
+- Stored in `localStorage` (no cookie, no Server Action: nothing the server needs) and
+  read through `useSyncExternalStore`, which also syncs other open tabs
+- Stored data is user-editable, so pure `parseHistory` validates it (ADR 0004); pure
+  `addToHistory` / `removeFromHistory` and the store have unit tests
+- One Playwright smoke test: record, remove, clear, survives reload

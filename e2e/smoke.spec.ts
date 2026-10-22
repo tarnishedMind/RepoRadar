@@ -105,3 +105,27 @@ test("describe it: a plain-language request returns repositories", async ({ page
   });
   await expect(page.locator("main section a[href^='/']").first()).toBeVisible();
 });
+
+test("describe it: history keeps recent requests and can remove them", async ({ page }) => {
+  await page.goto(`/find?q=${encodeURIComponent("Fast state management for React")}`);
+  await page.goto(`/find?q=${encodeURIComponent("A Python tool to scrape websites")}`);
+  await page.goto("/find");
+
+  const recent = page.getByRole("region", { name: "Recent requests" });
+  await expect(recent.getByRole("link")).toHaveText([
+    "A Python tool to scrape websites",
+    "Fast state management for React",
+  ]);
+
+  await recent
+    .getByRole("button", { name: "Remove “A Python tool to scrape websites” from history" })
+    .click();
+  await expect(recent.getByRole("link")).toHaveText(["Fast state management for React"]);
+
+  await recent.getByRole("button", { name: "Clear all" }).click();
+  await expect(recent).toBeHidden();
+
+  // Survives a reload: it lives in localStorage, not in React state.
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Recent requests" })).toBeHidden();
+});

@@ -26,7 +26,7 @@ updates.
 | --- | --- |
 | Repo and user pages (`/vercel/next.js`, `/u/torvalds`) | Server Components, Partial Prerendering, `<Suspense>` streaming per section, `generateMetadata`, `loading` / `error` / `not-found` files |
 | Trending, language leaderboards and repos by field (`/fields/frontend`) | ISR with `"use cache"`, `cacheLife`, `cacheTag`, `generateStaticParams`, optional catch-all route |
-| Describe it (`/find?q=…`) | `next/form`, nested `<Suspense>` streaming with a real-content fallback, `"use cache"` around free LLM calls (Groq), untrusted model output validated at the boundary, keyword-search fallback |
+| Describe it (`/find?q=…`) | `next/form`, nested `<Suspense>` streaming with a real-content fallback, `"use cache"` around free LLM calls (Groq), untrusted model output validated at the boundary, keyword-search fallback; recent-request history in `localStorage` via `useSyncExternalStore` |
 | `POST /api/revalidate` | Route Handler + `revalidateTag` for on-demand revalidation |
 | Search (`/search?q=…`) | Server prefetch + `HydrationBoundary`, `useInfiniteQuery` infinite scroll, URL-synced filters, hover prefetch |
 | Repo preview modal | Parallel route slot (`@modal`) + intercepting route (`(..)[owner]/[repo]`) |

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { FindForm } from "./find-form";
+import { FindHistory } from "./find-history";
 import { FindResults, FindResultsSkeleton } from "./find-results";
 import { parseFindQuery } from "./intent";
 
@@ -27,6 +28,7 @@ export async function FindView({
   return (
     <>
       <FindForm defaultValue={query} />
+      <FindHistory current={query} />
       {query ? (
         // A new key per query shows the skeleton again instead of the old results.
         <Suspense key={query} fallback={<FindResultsSkeleton />}>
