@@ -13,7 +13,7 @@ import { hasBearerToken } from "@/shared/lib/bearer-token";
  *     -d '{"tags":["trending"]}'
  *
  * Supported tags: trending, trending:<range>, leaderboard, leaderboard:<lang>,
- * repo:<owner>/<name>, user:<login>.
+ * field, field:<field>, repo:<owner>/<name>, user:<login>.
  */
 export async function POST(request: NextRequest) {
   if (!hasBearerToken(request.headers.get("authorization"), env.revalidateSecret())) {

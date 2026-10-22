@@ -2,8 +2,9 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 import { githubJson, githubText } from "./client";
-import { LANGUAGES, TRENDING_RANGES } from "./catalog";
-import type { LanguageSlug, TrendingRange } from "./catalog";
+import { FIELDS, LANGUAGES, TRENDING_RANGES } from "./catalog";
+import type { FieldSlug, LanguageSlug, TrendingRange } from "./catalog";
+import { FIELD_TOP_N, fieldTopicQuery, rankFieldRepos } from "./field-ranking";
 import { SEARCH_PER_PAGE, type RepoSearchParams } from "./search";
 import { tags } from "./tags";
 import type {
@@ -62,6 +63,31 @@ export async function getLanguageLeaderboard(lang: LanguageSlug) {
     perPage: 50,
   });
   return { repos: items, totalCount: total_count, fetchedAt: new Date().toISOString() };
+}
+
+/**
+ * The most-starred active repositories across a field's topics, revalidated
+ * daily. GitHub search can't OR topics, so this runs one search per topic and
+ * merges them. `Promise.all` only queues them: the client sends search requests
+ * one at a time.
+ */
+export async function getFieldRepos(field: FieldSlug) {
+  "use cache";
+  cacheLife("days");
+  cacheTag(tags.field(), tags.field(field));
+
+  const { topics } = FIELDS[field];
+  const now = new Date();
+  const results = await Promise.all(
+    topics.map((topic) => searchRepos(fieldTopicQuery(topic, now), { perPage: FIELD_TOP_N })),
+  );
+  return {
+    repos: rankFieldRepos(
+      topics,
+      results.map((r) => r.items),
+    ),
+    fetchedAt: now.toISOString(),
+  };
 }
 
 export async function getRepo(owner: string, repo: string) {

@@ -16,12 +16,16 @@ updates.
 | --- | --- |
 | ![Search results with a repo preview open in a modal](docs/screenshots/search-preview.png) | ![Trending repositories this week](docs/screenshots/trending.png) |
 
+| Repos by field |
+| --- |
+| ![Top Frontend repositories, ranked across the react, vue, svelte and angular topics](docs/screenshots/fields.png) |
+
 ## What's inside
 
 | Feature | Next.js / React concepts |
 | --- | --- |
 | Repo and user pages (`/vercel/next.js`, `/u/torvalds`) | Server Components, Partial Prerendering, `<Suspense>` streaming per section, `generateMetadata`, `loading` / `error` / `not-found` files |
-| Trending and language leaderboards | ISR with `"use cache"`, `cacheLife`, `cacheTag`, `generateStaticParams`, optional catch-all route |
+| Trending, language leaderboards and repos by field (`/fields/frontend`) | ISR with `"use cache"`, `cacheLife`, `cacheTag`, `generateStaticParams`, optional catch-all route |
 | `POST /api/revalidate` | Route Handler + `revalidateTag` for on-demand revalidation |
 | Search (`/search?q=…`) | Server prefetch + `HydrationBoundary`, `useInfiniteQuery` infinite scroll, URL-synced filters, hover prefetch |
 | Repo preview modal | Parallel route slot (`@modal`) + intercepting route (`(..)[owner]/[repo]`) |
@@ -34,7 +38,7 @@ updates.
 ```
 src/
   app/        routing only (pages, layouts, Route Handlers, metadata files)
-  features/   repo · search · watchlist · trending · leaderboard · user
+  features/   repo · search · watchlist · trending · leaderboard · fields · user
   entities/   github: API client, cached reads, cache tags, types, catalogs
   shared/     ui · lib · hooks · config, with no domain knowledge
   proxy.ts

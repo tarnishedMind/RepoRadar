@@ -76,3 +76,16 @@ test("unknown repositories show the not-found page", async ({ page }) => {
   await page.goto("/this-owner-does-not-exist-xyz/nope");
   await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
 });
+
+test("fields: pick a field and see its ranked repositories", async ({ page }) => {
+  await page.goto("/fields");
+  await page.getByRole("link", { name: /^Frontend/ }).click();
+
+  await expect(page).toHaveURL("/fields/frontend");
+  await expect(page.getByRole("heading", { name: "Top Frontend repositories" })).toBeVisible();
+  await expect(page.locator("main ol li").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Backend", exact: true })).toHaveAttribute(
+    "href",
+    "/fields/backend",
+  );
+});

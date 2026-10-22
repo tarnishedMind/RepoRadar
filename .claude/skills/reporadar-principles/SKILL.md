@@ -20,7 +20,7 @@ src/
   app/        routing only: page, layout, route, loading, error, metadata files
     _components/   app-wide composition (Providers, SiteHeader); private folder, not a route
   features/   one folder per user-facing capability
-    repo/  search/  watchlist/  trending/  leaderboard/  user/
+    repo/  search/  watchlist/  trending/  leaderboard/  fields/  user/
   entities/   domain data shared by several features
     github/   GitHub client, cached getters, cache tags, types, catalogs, RepoCard
   shared/     no domain knowledge at all

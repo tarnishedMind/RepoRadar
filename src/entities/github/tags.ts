@@ -1,4 +1,11 @@
-import { LANGUAGES, TRENDING_RANGES, type LanguageSlug, type TrendingRange } from "./catalog";
+import {
+  FIELDS,
+  LANGUAGES,
+  TRENDING_RANGES,
+  type FieldSlug,
+  type LanguageSlug,
+  type TrendingRange,
+} from "./catalog";
 
 /**
  * Cache tags for the cached GitHub reads, so they can be revalidated on demand
@@ -9,13 +16,14 @@ export const tags = {
   user: (login: string) => `user:${login}`.toLowerCase(),
   trending: (range?: TrendingRange) => (range ? `trending:${range}` : "trending"),
   leaderboard: (lang?: LanguageSlug) => (lang ? `leaderboard:${lang}` : "leaderboard"),
+  field: (field?: FieldSlug) => (field ? `field:${field}` : "field"),
 };
 
 const keys = (catalog: object) => Object.keys(catalog).join("|");
 
 /** Every tag `tags.*` can produce. Derived from the catalogs so the two can't drift. */
 const TAG_PATTERN = new RegExp(
-  `^(trending(:(${keys(TRENDING_RANGES)}))?|leaderboard(:(${keys(LANGUAGES)}))?|repo:[\\w.-]+\\/[\\w.-]+|user:[\\w-]+)$`,
+  `^(trending(:(${keys(TRENDING_RANGES)}))?|leaderboard(:(${keys(LANGUAGES)}))?|field(:(${keys(FIELDS)}))?|repo:[\\w.-]+\\/[\\w.-]+|user:[\\w-]+)$`,
 );
 
 /**

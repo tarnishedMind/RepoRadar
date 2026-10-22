@@ -15,6 +15,7 @@ TanStack Query v5, pnpm, Node 22. Deploys to Vercel.
 | User / org profile | `/u/[login]` | SSR, parallel data fetching, `loading.tsx`, `error.tsx`, `not-found.tsx` |
 | Trending | `/trending/[[...range]]` | ISR (`revalidate`), `generateStaticParams` for daily/weekly/monthly |
 | Language leaderboards | `/languages/[lang]` | ISR + `cacheTag`, on-demand revalidation via `POST /api/revalidate` route handler (secret-protected, `revalidateTag`) |
+| Repos by field | `/fields/[field]` | Parallel cached fan-out (`Promise.all` of searches inside one `"use cache"` read), ISR + `generateStaticParams`, per-field OG image |
 | Search | `/search` | TanStack Query `useInfiniteQuery` infinite scroll, URL-synced filters, server prefetch + `HydrationBoundary` |
 | Repo preview modal | `@modal/(..)[owner]/[repo]` | Parallel routes + intercepting routes: modal on soft nav, full page on hard nav/refresh |
 | Hover prefetch | repo cards | `queryClient.prefetchQuery` on hover, plus `<Link>` prefetch |
@@ -31,6 +32,7 @@ unique; phases group them.
 | --- | --- | --- | --- |
 | 1. Showcase MVP | Every core App Router feature working end to end | M0–M7 | ✅ Done |
 | 2. Architecture & quality | Predictable structure, enforced boundaries, tested core, consistent formatting | M8–M10 | ✅ Done |
+| 3. Discovery | New ways to find repositories, as separate routes next to the existing ones | M11 | ✅ Done |
 
 Structural decisions are recorded in [docs/adr/](adr/README.md).
 
@@ -98,3 +100,32 @@ ADR [0007](adr/0007-biome-formatter.md).
 - `biome.json`: 2 spaces, line width 100, git-ignored files skipped
 - `pnpm format` / `pnpm format:check`, check runs in CI before lint
 - One reformat-only commit, listed in `.git-blame-ignore-revs`
+
+## Phase 3 — Discovery ✅
+
+### M11 — Repos by field ✅
+A developer picks a field (Frontend, Backend, …) and gets the most relevant active
+repositories for it. Built as a separate route: existing pages and their behavior
+stay unchanged; shared code only gains additive entries.
+- Fields, 4 GitHub topics each: Frontend (react, vue, svelte, angular), Backend
+  (backend, rest-api, microservices, web-framework), Mobile (android, ios, react-native,
+  flutter), DevOps (devops, kubernetes, docker, terraform), AI/ML (machine-learning,
+  deep-learning, llm, nlp), Data (database, data-engineering, etl, analytics), Game dev
+  (game-engine, gamedev, godot, unity), Security (security, pentesting, cryptography,
+  ctf), Embedded (embedded, iot, arduino, rtos). Every topic has at least 30 active
+  repos with 200+ stars
+- Ranking: GitHub search rejects `topic:a OR topic:b`, so one search per topic runs
+  (queued by the client's search queue) with `archived:false stars:>=200 pushed:>=<180 days ago>`, sorted by stars;
+  results are merged, deduplicated and the top 30 by stars kept, each with its matched
+  topics
+- `FIELDS` catalog in `entities/github/catalog.ts` (so `TAG_PATTERN` stays derived from
+  catalogs); `getFieldRepos(field)` in `cached.ts` with `cacheLife("days")` and tags
+  `field` + `field:<slug>`; pure merge/rank in `entities/github/field-ranking.ts` with
+  unit tests
+- `src/features/fields/`: `index.ts` (`FieldList` picker), `server.ts` (`FieldRepos`,
+  `FieldReposSkeleton`)
+- Routes: `/fields` (static picker), `/fields/[field]` (ISR, Frontend and Backend
+  prerendered via `generateStaticParams`), `generateMetadata`, `opengraph-image.tsx`
+  on `OgCard`
+- "Fields" link in the site header; `POST /api/revalidate` accepts the new tags
+- One Playwright smoke test; no new dependencies; ARCHITECTURE.md and README updated

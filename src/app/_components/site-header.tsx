@@ -5,6 +5,7 @@ const NAV = [
   { href: "/search", label: "Search" },
   { href: "/trending", label: "Trending" },
   { href: "/languages", label: "Languages" },
+  { href: "/fields", label: "Fields" },
 ];
 
 export function SiteHeader() {

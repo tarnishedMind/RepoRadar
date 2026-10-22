@@ -38,7 +38,7 @@ things live:
 | Cookie storage, Server Actions, watch buttons, `/watchlist` body | `features/watchlist/*` |
 | Search view, result card, prefetch, preview modal body | `features/search/*` |
 | Repo page body and its streamed sections | `features/repo/*` |
-| Trending, leaderboard and profile page bodies | `features/{trending,leaderboard,user}/*` |
+| Trending, leaderboard, field and profile page bodies | `features/{trending,leaderboard,fields,user}/*` |
 | Providers, SiteHeader | `app/_components/*` |
 
 Module rules:
@@ -83,7 +83,7 @@ Module rules:
 
 - Every cached read lives in the GitHub entity (`entities/github/cached.ts`, exported from `@/entities/github/server`) and has, in order:
   `"use cache"`, `cacheLife(...)`, `cacheTag(...)` (except search, which is not tagged).
-  Current lifetimes: repo/readme/user `hours`, languages/contributors/leaderboard
+  Current lifetimes: repo/readme/user `hours`, languages/contributors/leaderboard/field
   `days`, trending `hours`, search `minutes`. Keep a new function consistent with its
   neighbours and add it to the table in ARCHITECTURE.md §6.
 - `githubJson` / `githubText` return `null` on 404 and throw `GitHubError` /
