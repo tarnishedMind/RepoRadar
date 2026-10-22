@@ -26,6 +26,7 @@ export async function FieldRepos({ params }: { params: Promise<{ field: string }
           <Link
             key={slug}
             href={`/fields/${slug}`}
+            prefetch={false} // see FieldList: each uncached field costs four searches
             aria-current={slug === field ? "page" : undefined}
             className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-400 aria-[current=page]:border-zinc-900 aria-[current=page]:bg-zinc-900 aria-[current=page]:text-white dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:aria-[current=page]:border-zinc-100 dark:aria-[current=page]:bg-zinc-100 dark:aria-[current=page]:text-zinc-900"
           >
