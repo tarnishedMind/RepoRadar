@@ -22,3 +22,4 @@ record that supersedes the old one.
 | [0005](0005-typed-env-module.md) | One typed module for environment variables | Accepted |
 | [0006](0006-unit-test-coverage-threshold.md) | 80% line coverage for entities and pure logic | Accepted |
 | [0007](0007-biome-formatter.md) | Biome as the code formatter, ESLint stays the linter | Accepted |
+| [0008](0008-llm-output-is-untrusted-input.md) | LLM output is untrusted input, behind one small client | Accepted |

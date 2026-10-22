@@ -16,9 +16,9 @@ updates.
 | --- | --- |
 | ![Search results with a repo preview open in a modal](docs/screenshots/search-preview.png) | ![Trending repositories this week](docs/screenshots/trending.png) |
 
-| Repos by field |
-| --- |
-| ![Top Frontend repositories, ranked across the react, vue, svelte and angular topics](docs/screenshots/fields.png) |
+| Repos by field | Describe it (AI) |
+| --- | --- |
+| ![Top Frontend repositories, ranked across the react, vue, svelte and angular topics](docs/screenshots/fields.png) | ![Best matches for "I need a library that works with dates in JavaScript", with a reason each](docs/screenshots/find.png) |
 
 ## What's inside
 
@@ -26,6 +26,7 @@ updates.
 | --- | --- |
 | Repo and user pages (`/vercel/next.js`, `/u/torvalds`) | Server Components, Partial Prerendering, `<Suspense>` streaming per section, `generateMetadata`, `loading` / `error` / `not-found` files |
 | Trending, language leaderboards and repos by field (`/fields/frontend`) | ISR with `"use cache"`, `cacheLife`, `cacheTag`, `generateStaticParams`, optional catch-all route |
+| Describe it (`/find?q=…`) | `next/form`, nested `<Suspense>` streaming with a real-content fallback, `"use cache"` around free LLM calls (Groq), untrusted model output validated at the boundary, keyword-search fallback |
 | `POST /api/revalidate` | Route Handler + `revalidateTag` for on-demand revalidation |
 | Search (`/search?q=…`) | Server prefetch + `HydrationBoundary`, `useInfiniteQuery` infinite scroll, URL-synced filters, hover prefetch |
 | Repo preview modal | Parallel route slot (`@modal`) + intercepting route (`(..)[owner]/[repo]`) |
@@ -77,6 +78,8 @@ Server-only variables are read only in `src/shared/config/env.ts`, public ones o
 | --- | --- | --- |
 | `GITHUB_TOKEN` | Recommended | Raises the GitHub API limit from 60 to 5,000 requests an hour. A fine-grained token with "Public repositories" access and no permissions is enough. |
 | `REVALIDATE_SECRET` | For `/api/revalidate` | Shared secret for on-demand revalidation. Any random string (`openssl rand -hex 32`). |
+| `GROQ_API_KEY` | For AI on `/find` | Free key from [console.groq.com](https://console.groq.com). Without it `/find` uses plain keyword search. |
+| `FIND_AI_ENABLED` | No | Set to `false` to switch the AI part of `/find` off (kill switch) without removing the key. |
 | `NEXT_PUBLIC_SITE_URL` | No | Absolute base URL for OG tags, sitemap and robots. On Vercel the production domain is used automatically. |
 
 ## Scripts
@@ -96,7 +99,8 @@ Server-only variables are read only in `src/shared/config/env.ts`, public ones o
 - **Unit tests** (`src/**/*.test.ts`) run in plain Node with Vitest. `fetch` and
   `next/headers` are mocked, so they never touch GitHub.
 - **Smoke tests** (`e2e/`) start `next start` and drive Chrome through the main flows:
-  search, the preview modal, watchlist, proxy redirects and the 404 page. They use the
+  search, the preview modal, watchlist, proxy redirects, field pages, `/find` and the 404
+  page. They use the
   real GitHub API.
 - **GitHub Actions** (`.github/workflows/ci.yml`) runs on every push to `main` and every
   pull request: format check, lint, typecheck and unit tests in one job; build and smoke
@@ -108,11 +112,17 @@ Server-only variables are read only in `src/shared/config/env.ts`, public ones o
 1. Push the repo to GitHub.
 2. On [vercel.com](https://vercel.com), choose **Add New → Project** and import the repo.
    Vercel detects Next.js and pnpm; keep the defaults.
-3. Add `GITHUB_TOKEN` and `REVALIDATE_SECRET` under **Settings → Environment Variables**.
+3. Add `GITHUB_TOKEN`, `REVALIDATE_SECRET` and `GROQ_API_KEY` under **Settings →
+   Environment Variables**.
 4. Deploy. From then on every push to `main` deploys to production and every pull
    request gets a preview URL.
 5. Optional: under **Settings → Deployment Checks**, require the CI workflow to pass
    before a deployment is promoted.
+6. Recommended: rate-limit `/find` so nobody can drain the free Groq quota. In the
+   project's **Firewall** tab, add a custom rule: *if* Request Path *starts with* `/find`,
+   *then* **Rate Limit**, fixed window of 60 seconds, 10 requests, keyed by IP, action
+   deny (429). Vercel enforces it before the app runs. An in-app limit in `proxy.ts`
+   wouldn't hold, because every serverless instance keeps its own memory.
 
 ## On-demand revalidation
 

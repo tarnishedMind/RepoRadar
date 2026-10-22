@@ -14,4 +14,8 @@ export const env = {
   githubToken: () => read("GITHUB_TOKEN"),
   /** Required for POST /api/revalidate; without it the endpoint rejects every call. */
   revalidateSecret: () => read("REVALIDATE_SECRET"),
+  /** Optional: Groq key for /find. Without it /find falls back to keyword search. */
+  groqApiKey: () => read("GROQ_API_KEY"),
+  /** Kill switch for the AI part of /find; anything but "false" keeps it on. */
+  findAiEnabled: () => read("FIND_AI_ENABLED") !== "false",
 };

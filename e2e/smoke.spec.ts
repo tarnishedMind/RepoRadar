@@ -89,3 +89,19 @@ test("fields: pick a field and see its ranked repositories", async ({ page }) =>
     "/fields/backend",
   );
 });
+
+test("describe it: a plain-language request returns repositories", async ({ page }) => {
+  await page.goto("/find");
+  await page.getByRole("link", { name: "Fast state management for React" }).click();
+
+  await expect(page).toHaveURL(/\/find\?q=Fast\+state\+management\+for\+React/);
+  await expect(page.getByLabel("Describe what you need")).toHaveValue(
+    "Fast state management for React",
+  );
+  // With GROQ_API_KEY: "Best matches"; without it (CI): plain keyword "Results". Up to three
+  // GitHub searches run one after another (plus a model call), so allow more than the default.
+  await expect(page.getByRole("heading", { name: /^(Best matches|Results)$/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("main section a[href^='/']").first()).toBeVisible();
+});

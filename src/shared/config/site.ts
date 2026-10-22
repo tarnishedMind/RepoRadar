@@ -19,6 +19,7 @@ export const RESERVED_SEGMENTS = new Set([
   "trending",
   "languages",
   "fields",
+  "find",
   "search",
   "watchlist",
   "api",

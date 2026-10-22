@@ -48,8 +48,9 @@ describe("proxy rewrites and headers", () => {
     expect(new URL(res.headers.get("x-middleware-rewrite")!).pathname).toBe("/u/torvalds");
   });
 
-  it("marks search and watchlist pages as noindex", () => {
+  it("marks search, find and watchlist pages as noindex", () => {
     expect(run("/search").headers.get("x-robots-tag")).toBe("noindex");
+    expect(run("/find").headers.get("x-robots-tag")).toBe("noindex");
     expect(run("/watchlist").headers.get("x-robots-tag")).toBe("noindex");
     expect(run("/trending").headers.get("x-robots-tag")).toBeNull();
   });

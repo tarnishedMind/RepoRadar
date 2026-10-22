@@ -93,6 +93,7 @@ flowchart TD
   langs --> lang["[lang]/page.tsx<br/>→ /languages/rust"]
   root --> fields["fields/<br/>page.tsx → /fields"]
   fields --> field["[field]/page.tsx · opengraph-image.tsx<br/>→ /fields/frontend"]
+  root --> find["find/<br/>page.tsx<br/>→ /find?q=…"]
   root --> search["search/<br/>layout.tsx · page.tsx<br/>→ /search?q=…"]
   search --> modal["@modal/ (parallel slot, not a URL)<br/>default.tsx · page.tsx"]
   modal --> intercept["(..)[owner]/[repo]/page.tsx<br/>intercepts /owner/repo"]
@@ -211,7 +212,7 @@ interactivity to small client leaves.**
 | `features/search/prefetched-search.tsx` (prefetches data) | `features/search/search-result-card.tsx` (hover prefetch) |
 | `@modal/(..)[owner]/[repo]/page.tsx` | `shared/ui/modal.tsx` (`<dialog>`, router.back) |
 | `features/watchlist/watchlist-content.tsx` (reads the cookie) | `features/search/repo-preview.tsx` (useQuery) |
-| `features/trending`, `leaderboard`, `fields`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
+| `features/trending`, `leaderboard`, `fields`, `find`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
 | | `features/watchlist/watchlist-nav-link.tsx` (header count) |
 | | `features/watchlist/watchlist-items.tsx` (useOptimistic + form action) |
 
@@ -304,6 +305,7 @@ export async function getRepo(owner: string, repo: string) {
 | `getTrendingRepos(range)` | hours | `trending`, `trending:<range>` |
 | `getLanguageLeaderboard(lang)` | days | `leaderboard`, `leaderboard:<lang>` |
 | `getFieldRepos(field)` | days | `field`, `field:<field>` |
+| `interpretRequest`, `pickRepos` (Groq, in `features/find/ai.ts`) | days | none |
 | `searchRepositories` | minutes | none |
 
 ### Prerendering and ISR
@@ -334,6 +336,11 @@ Because the fan-out happens *inside* one `"use cache"` function, the whole field
 cache entry: one `cacheLife`, one pair of tags, one "Generated" time, and the OG image and
 `generateMetadata` reuse it for free. The client's search queue still sends the four
 requests one after another.
+
+A gotcha found the hard way: `<Link>` prefetches what it points to, and with Partial
+Prefetching that includes cached data. The `/fields` picker linked all nine fields, so
+opening it fired up to 36 GitHub searches and burned the 30-a-minute search limit. Field
+links (and `/find` examples, which would also spend AI quota) use `prefetch={false}`.
 
 Any other URL is rendered on its first visit and then stored, so later visitors get it
 instantly. When the `cacheLife` window passes, the next visitor still gets the stored
@@ -389,13 +396,35 @@ independently.
 Two ways to declare a boundary, both used here:
 
 - **Inline `<Suspense>`**: `[owner]/[repo]/page.tsx`, `trending`, `languages/[lang]`,
-  `fields/[field]`, `search/page.tsx`. Fine-grained.
+  `fields/[field]`, `find`, `search/page.tsx`. Fine-grained.
 - **`loading.tsx`**: `u/[login]/loading.tsx`. Next wraps the whole page in a
   `<Suspense>` using this file as the fallback.
 
 Why pages pass `params` *down* unawaited: with Cache Components, the part of a page that
 doesn't depend on the URL can be prerendered once as an **App Shell** and reused for
 every URL. Awaiting `params` inside the boundary keeps the shell generic.
+
+### Nested boundaries and a useful fallback: `/find`
+
+`/find` (M12) asks a free AI model (Groq) to turn "I need a library that works with dates
+in JavaScript" into GitHub searches, then to pick the best results with a reason each.
+Three nested boundaries let each step appear as soon as it is ready:
+
+```mermaid
+flowchart TD
+  p["FindPage (static shell: title)"] --> a["Suspense: FindView<br/>awaits searchParams → form with the request"]
+  a --> b["Suspense key=query: FindResults<br/>model reads request → 1–3 GitHub searches → merged list"]
+  b --> c["Suspense: BestMatches<br/>model picks + reasons"]
+  c -. "fallback is the plain result list,<br/>labelled 'Picking the best matches…'" .-> b
+```
+
+The innermost fallback isn't a skeleton: it's the real result list. Visitors can click a
+repository while the model is still ranking. `key={query}` on the middle boundary makes a
+new request show its skeleton instead of the previous results.
+
+Both model calls are `"use cache"` functions keyed on the normalized request, so a
+repeated request costs no quota. Model output is untrusted and validated by pure guards,
+and every failure falls back to keyword search ([ADR 0008](adr/0008-llm-output-is-untrusted-input.md)).
 
 ---
 
@@ -707,7 +736,7 @@ flowchart TD
   own -- "/torvalds" --> r1["308 → /u/torvalds"]
   own -- "/vercel/next.js.git<br/>/vercel/next.js/tree/canary" --> r2["308 → /vercel/next.js"]
   own -- "already clean" --> hdr
-  own -- "reserved section" --> hdr["Continue; add X-Robots-Tag: noindex<br/>for /search and /watchlist"]
+  own -- "reserved section" --> hdr["Continue; add X-Robots-Tag: noindex<br/>for /search, /find and /watchlist"]
   hdr --> route
 ```
 
@@ -721,11 +750,11 @@ Things to know:
   get "cleaned up" into a redirect).
 - **Redirects only for GET/HEAD.** Server Actions arrive as POST requests to the current
   page's URL and must pass through untouched.
-- **Reserved names** (`u`, `trending`, `languages`, `fields`, `search`, `watchlist`, `api`) live in
+- **Reserved names** (`u`, `trending`, `languages`, `fields`, `find`, `search`, `watchlist`, `api`) live in
   `src/shared/config/site.ts`. A GitHub user literally named `trending` can't get a short URL, but
   `/u/trending` still works.
 - `X-Robots-Tag: noindex` is a response header that tells search engines not to index
-  search results or someone's personal watchlist.
+  search results, AI finds or someone's personal watchlist.
 
 ---
 
@@ -784,8 +813,8 @@ layout is `src/shared/ui/og-card.tsx`.
 
 `app/sitemap.ts` and `app/robots.ts` are functions that return plain objects. Next turns
 them into `/sitemap.xml` and `/robots.txt` at build time. The sitemap lists the home,
-trending, leaderboard and field pages; robots allows everything except `/api/`, `/search` and
-`/watchlist`, and points to the sitemap.
+trending, leaderboard and field pages; robots allows everything except `/api/`, `/search`,
+`/find` and `/watchlist`, and points to the sitemap.
 
 ---
 
@@ -874,8 +903,8 @@ flowchart TD
   b --> cache["'use cache' entries, ISR pages<br/>→ Vercel's data cache, refreshed in the background"]
 ```
 
-Environment variables (`GITHUB_TOKEN`, `REVALIDATE_SECRET`, optionally
-`NEXT_PUBLIC_SITE_URL`) are set in the Vercel dashboard, never committed. The README has
+Environment variables (`GITHUB_TOKEN`, `REVALIDATE_SECRET`, `GROQ_API_KEY`, optionally
+`FIND_AI_ENABLED` and `NEXT_PUBLIC_SITE_URL`) are set in the Vercel dashboard, never committed. The README has
 the step-by-step setup.
 
 ---
@@ -889,7 +918,7 @@ in four layers that only import downward ([ADR 0002](adr/0002-feature-folder-lay
 ```mermaid
 flowchart TD
   app["app/<br/>routing files only: page, layout, route, metadata<br/>_components/: Providers, SiteHeader"]
-  features["features/<br/>repo · search · watchlist · trending · leaderboard · fields · user"]
+  features["features/<br/>repo · search · watchlist · trending · leaderboard · fields · find · user"]
   entities["entities/github/<br/>client, cached getters, tags, types, catalogs, RepoCard"]
   shared["shared/<br/>ui · lib · hooks · config (no domain knowledge)"]
   app --> features --> entities --> shared

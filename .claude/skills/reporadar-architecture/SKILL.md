@@ -39,6 +39,7 @@ things live:
 | Search view, result card, prefetch, preview modal body | `features/search/*` |
 | Repo page body and its streamed sections | `features/repo/*` |
 | Trending, leaderboard, field and profile page bodies | `features/{trending,leaderboard,fields,user}/*` |
+| `/find` page body, Groq client, cached model calls, intent/pick guards | `features/find/*` (ADR 0008) |
 | Providers, SiteHeader | `app/_components/*` |
 
 Module rules:
@@ -86,6 +87,11 @@ Module rules:
   Current lifetimes: repo/readme/user `hours`, languages/contributors/leaderboard/field
   `days`, trending `hours`, search `minutes`. Keep a new function consistent with its
   neighbours and add it to the table in ARCHITECTURE.md §6.
+  Exception: the two Groq calls behind `/find` are cached in `features/find/ai.ts`
+  (only one feature uses them). Their failures throw inside `"use cache"` (never cached)
+  and are caught outside with `unstable_rethrow` first.
+- `<Link>` prefetch fills caches, including GitHub searches. Use `prefetch={false}` on
+  links to uncached search-heavy pages (fields, `/find` examples).
 - `githubJson` / `githubText` return `null` on 404 and throw `GitHubError` /
   `GitHubRateLimitError` otherwise. Pages turn `null` into `notFound()`; errors go to
   `error.tsx`. Don't catch errors in pages unless degrading one item (as `/watchlist` does).
