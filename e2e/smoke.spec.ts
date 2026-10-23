@@ -107,11 +107,15 @@ test("describe it: a plain-language request returns repositories", async ({ page
 });
 
 test("describe it: history keeps recent requests and can remove them", async ({ page }) => {
-  await page.goto(`/find?q=${encodeURIComponent("Fast state management for React")}`);
-  await page.goto(`/find?q=${encodeURIComponent("A Python tool to scrape websites")}`);
+  const recent = page.getByRole("region", { name: "Recent requests" });
+  // A request is recorded by an effect after hydration, which can come after the
+  // load event on a slow machine (CI). Wait for its chip before navigating on.
+  for (const query of ["Fast state management for React", "A Python tool to scrape websites"]) {
+    await page.goto(`/find?q=${encodeURIComponent(query)}`);
+    await expect(recent.getByRole("link", { name: query })).toBeVisible();
+  }
   await page.goto("/find");
 
-  const recent = page.getByRole("region", { name: "Recent requests" });
   await expect(recent.getByRole("link")).toHaveText([
     "A Python tool to scrape websites",
     "Fast state management for React",
