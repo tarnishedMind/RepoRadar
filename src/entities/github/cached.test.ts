@@ -9,6 +9,7 @@ const http = vi.hoisted(() => ({ githubJson: vi.fn(), githubText: vi.fn() }));
 vi.mock("./client", () => http);
 
 const {
+  getFieldRepos,
   getLanguageLeaderboard,
   getRepo,
   getRepoContributors,
@@ -55,6 +56,31 @@ describe("getLanguageLeaderboard", () => {
     expect(result.totalCount).toBe(1234);
     expect(cache.cacheLife).toHaveBeenCalledWith("days");
     expect(cache.cacheTag).toHaveBeenCalledWith("leaderboard", "leaderboard:cpp");
+  });
+});
+
+describe("getFieldRepos", () => {
+  it("searches each of the field's topics and merges them by stars", async () => {
+    const repo = (id: number, stars: number) => ({
+      id,
+      full_name: `o/r${id}`,
+      stargazers_count: stars,
+    });
+    http.githubJson
+      .mockResolvedValueOnce({ ...empty, items: [repo(1, 10)] })
+      .mockResolvedValueOnce({ ...empty, items: [repo(2, 20), repo(1, 10)] });
+
+    const { repos } = await getFieldRepos("frontend");
+
+    const queries = http.githubJson.mock.calls.map(([, opts]) => opts.searchParams.q);
+    expect(queries).toHaveLength(4);
+    expect(queries[0]).toMatch(
+      /^topic:react archived:false stars:>=200 pushed:>=\d{4}-\d{2}-\d{2}$/,
+    );
+    expect(queries[3]).toMatch(/^topic:angular /);
+    expect(repos.map((r) => r.id)).toEqual([2, 1]);
+    expect(cache.cacheLife).toHaveBeenCalledWith("days");
+    expect(cache.cacheTag).toHaveBeenCalledWith("field", "field:frontend");
   });
 });
 

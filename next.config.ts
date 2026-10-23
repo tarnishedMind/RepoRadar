@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-right",
   },
+  experimental: {
+    agentUpgrade: "security",
+  },
 };
 
 export default nextConfig;

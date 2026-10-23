@@ -42,8 +42,8 @@ export function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  // Search results and the cookie-based watchlist shouldn't show up in search engines.
-  if (["search", "watchlist"].includes(original[0] ?? "")) {
+  // Search results, AI finds and the cookie-based watchlist shouldn't show up in search engines.
+  if (["search", "find", "watchlist"].includes(original[0] ?? "")) {
     response.headers.set("X-Robots-Tag", "noindex");
   }
   return response;

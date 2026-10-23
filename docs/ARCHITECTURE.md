@@ -91,6 +91,9 @@ flowchart TD
   root --> trending["trending/[[...range]]/<br/>page.tsx<br/>→ /trending, /trending/daily"]
   root --> langs["languages/<br/>page.tsx → /languages"]
   langs --> lang["[lang]/page.tsx<br/>→ /languages/rust"]
+  root --> fields["fields/<br/>page.tsx → /fields"]
+  fields --> field["[field]/page.tsx · opengraph-image.tsx<br/>→ /fields/frontend"]
+  root --> find["find/<br/>page.tsx<br/>→ /find?q=…"]
   root --> search["search/<br/>layout.tsx · page.tsx<br/>→ /search?q=…"]
   search --> modal["@modal/ (parallel slot, not a URL)<br/>default.tsx · page.tsx"]
   modal --> intercept["(..)[owner]/[repo]/page.tsx<br/>intercepts /owner/repo"]
@@ -107,7 +110,7 @@ Folder naming conventions used here:
 
 | Folder | Meaning | Example in repo |
 | --- | --- | --- |
-| `name/` | Static segment | `trending/`, `languages/`, `search/` |
+| `name/` | Static segment | `trending/`, `languages/`, `fields/`, `search/` |
 | `[param]/` | Dynamic segment, value arrives in `params` | `[owner]/[repo]/`, `u/[login]/` |
 | `[[...param]]/` | Optional catch-all: zero or more segments | `trending/[[...range]]/` matches `/trending` and `/trending/weekly` |
 | `@slot/` | Parallel route slot. Not part of the URL; passed to the layout as a prop | `search/@modal/` |
@@ -209,9 +212,10 @@ interactivity to small client leaves.**
 | `features/search/prefetched-search.tsx` (prefetches data) | `features/search/search-result-card.tsx` (hover prefetch) |
 | `@modal/(..)[owner]/[repo]/page.tsx` | `shared/ui/modal.tsx` (`<dialog>`, router.back) |
 | `features/watchlist/watchlist-content.tsx` (reads the cookie) | `features/search/repo-preview.tsx` (useQuery) |
-| `features/trending`, `leaderboard`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
+| `features/trending`, `leaderboard`, `fields`, `find`, `user` page bodies | `features/watchlist/watch-button.tsx` (useMutation) |
 | | `features/watchlist/watchlist-nav-link.tsx` (header count) |
 | | `features/watchlist/watchlist-items.tsx` (useOptimistic + form action) |
+| | `features/find/find-history.tsx` (localStorage via useSyncExternalStore) |
 
 Paths here are relative to `src/`. Section 18 explains the folder layout.
 
@@ -267,7 +271,7 @@ The data layer is the GitHub entity in `src/entities/github/`. Server code impor
 
 ```mermaid
 flowchart LR
-  pages["Pages & features"] --> idx["github/server.ts → cached.ts<br/>getRepo, getUser, getTrendingRepos,<br/>getLanguageLeaderboard, searchRepositories<br/>('use cache' + cacheLife + cacheTag)"]
+  pages["Pages & features"] --> idx["github/server.ts → cached.ts<br/>getRepo, getUser, getTrendingRepos,<br/>getLanguageLeaderboard, getFieldRepos,<br/>searchRepositories<br/>('use cache' + cacheLife + cacheTag)"]
   idx --> client["github/client.ts<br/>fetch wrapper: token header,<br/>404 → null, rate limit → error<br/>(server-only)"]
   client --> gh[(GitHub REST API)]
   types["github/index.ts: types, catalogs,<br/>search constants, RepoCard<br/>(safe to import anywhere)"] -.-> pages
@@ -301,6 +305,8 @@ export async function getRepo(owner: string, repo: string) {
 | `getUser`, `getUserRepos` | hours | `user:<login>` |
 | `getTrendingRepos(range)` | hours | `trending`, `trending:<range>` |
 | `getLanguageLeaderboard(lang)` | days | `leaderboard`, `leaderboard:<lang>` |
+| `getFieldRepos(field)` | days | `field`, `field:<field>` |
+| `interpretRequest`, `pickRepos` (Groq, in `features/find/ai.ts`) | days | none |
 | `searchRepositories` | minutes | none |
 
 ### Prerendering and ISR
@@ -318,6 +324,24 @@ search params).
   their first visit. Building all 12 at once fired a burst of GitHub search requests and
   tripped GitHub's "secondary" rate limit, which failed the build. The GitHub client also
   runs search requests one at a time and retries briefly when that limit hits.
+- `fields/[field]` builds `frontend` and `backend`. Each field costs four searches (one
+  per topic), so the list stays short for the same reason.
+
+### Several requests, one cache entry
+
+A field (`/fields/frontend`) is defined by four GitHub topics, and GitHub search can't
+`OR` topics together (`topic:react OR topic:vue` is rejected). So `getFieldRepos` runs one
+search per topic with `Promise.all`, then merges, deduplicates and ranks the results with
+the pure `rankFieldRepos` (`entities/github/field-ranking.ts`, unit-tested without Next).
+Because the fan-out happens *inside* one `"use cache"` function, the whole field is one
+cache entry: one `cacheLife`, one pair of tags, one "Generated" time, and the OG image and
+`generateMetadata` reuse it for free. The client's search queue still sends the four
+requests one after another.
+
+A gotcha found the hard way: `<Link>` prefetches what it points to, and with Partial
+Prefetching that includes cached data. The `/fields` picker linked all nine fields, so
+opening it fired up to 36 GitHub searches and burned the 30-a-minute search limit. Field
+links (and `/find` examples, which would also spend AI quota) use `prefetch={false}`.
 
 Any other URL is rendered on its first visit and then stored, so later visitors get it
 instantly. When the `cacheLife` window passes, the next visitor still gets the stored
@@ -344,7 +368,7 @@ sequenceDiagram
   N-->>V: new page
 ```
 
-The "Generated … UTC" line on Trending and leaderboard pages shows when the cached data
+The "Generated … UTC" line on Trending, leaderboard and field pages shows when the cached data
 was produced, so you can watch this happen with `pnpm build && pnpm start`. (In
 `pnpm dev` caching is not representative.)
 
@@ -373,13 +397,52 @@ independently.
 Two ways to declare a boundary, both used here:
 
 - **Inline `<Suspense>`**: `[owner]/[repo]/page.tsx`, `trending`, `languages/[lang]`,
-  `search/page.tsx`. Fine-grained.
+  `fields/[field]`, `find`, `search/page.tsx`. Fine-grained.
 - **`loading.tsx`**: `u/[login]/loading.tsx`. Next wraps the whole page in a
   `<Suspense>` using this file as the fallback.
 
 Why pages pass `params` *down* unawaited: with Cache Components, the part of a page that
 doesn't depend on the URL can be prerendered once as an **App Shell** and reused for
 every URL. Awaiting `params` inside the boundary keeps the shell generic.
+
+### Nested boundaries and a useful fallback: `/find`
+
+`/find` (M12) asks a free AI model (Groq) to turn "I need a library that works with dates
+in JavaScript" into GitHub searches, then to pick the best results with a reason each.
+Three nested boundaries let each step appear as soon as it is ready:
+
+```mermaid
+flowchart TD
+  p["FindPage (static shell: title)"] --> a["Suspense: FindView<br/>awaits searchParams → form with the request"]
+  a --> b["Suspense key=query: FindResults<br/>model reads request → 1–3 GitHub searches → merged list"]
+  b --> c["Suspense: BestMatches<br/>model picks + reasons"]
+  c -. "fallback is the plain result list,<br/>labelled 'Picking the best matches…'" .-> b
+```
+
+The innermost fallback isn't a skeleton: it's the real result list. Visitors can click a
+repository while the model is still ranking. `key={query}` on the middle boundary makes a
+new request show its skeleton instead of the previous results.
+
+Both model calls are `"use cache"` functions keyed on the normalized request, so a
+repeated request costs no quota. Model output is untrusted and validated by pure guards,
+and every failure falls back to keyword search ([ADR 0008](adr/0008-llm-output-is-untrusted-input.md)).
+
+### Browser-only state: the `/find` history
+
+Recent requests (M13) live in `localStorage`, because the server never needs them. That
+is the case `useSyncExternalStore` exists for: a store outside React that React subscribes
+to (`features/find/history-store.ts`).
+
+- `subscribe` listens to the `storage` event (fired in *other* tabs) plus a custom event
+  this tab dispatches after its own writes, so every open tab stays in sync.
+- `getSnapshot` must return the same array while nothing changed, or React re-renders
+  forever; the store caches the parsed value by the raw string.
+- `getServerSnapshot` returns an empty list. The server renders no history and the client
+  fills it in right after hydration, so there's no hydration mismatch.
+- What comes back from `localStorage` is user-editable, so it goes through `parseHistory`
+  like any other untrusted input.
+
+Compare with the watchlist (section 13), which uses a cookie because the server renders it.
 
 ---
 
@@ -691,7 +754,7 @@ flowchart TD
   own -- "/torvalds" --> r1["308 → /u/torvalds"]
   own -- "/vercel/next.js.git<br/>/vercel/next.js/tree/canary" --> r2["308 → /vercel/next.js"]
   own -- "already clean" --> hdr
-  own -- "reserved section" --> hdr["Continue; add X-Robots-Tag: noindex<br/>for /search and /watchlist"]
+  own -- "reserved section" --> hdr["Continue; add X-Robots-Tag: noindex<br/>for /search, /find and /watchlist"]
   hdr --> route
 ```
 
@@ -705,11 +768,11 @@ Things to know:
   get "cleaned up" into a redirect).
 - **Redirects only for GET/HEAD.** Server Actions arrive as POST requests to the current
   page's URL and must pass through untouched.
-- **Reserved names** (`u`, `trending`, `languages`, `search`, `watchlist`, `api`) live in
+- **Reserved names** (`u`, `trending`, `languages`, `fields`, `find`, `search`, `watchlist`, `api`) live in
   `src/shared/config/site.ts`. A GitHub user literally named `trending` can't get a short URL, but
   `/u/trending` still works.
 - `X-Robots-Tag: noindex` is a response header that tells search engines not to index
-  search results or someone's personal watchlist.
+  search results, AI finds or someone's personal watchlist.
 
 ---
 
@@ -724,7 +787,7 @@ Instead of managing `<title>` with a library, pages export metadata:
   `twitter.card: "summary_large_image"`, and `metadataBase`.
 - Dynamic pages export `generateMetadata({ params })`, which fetches the same cached data
   as the page (no extra GitHub call, thanks to `"use cache"`) and returns title,
-  description and Open Graph tags. Examples: repo, user, trending, leaderboard and search
+  description and Open Graph tags. Examples: repo, user, trending, leaderboard, field and search
   pages.
 - Child metadata is merged over parent metadata, but nested objects like `openGraph` are
   replaced, not deep-merged.
@@ -744,6 +807,7 @@ them with JSX:
 | `app/opengraph-image.tsx` | Default RepoRadar card for every page without its own |
 | `app/[owner]/[repo]/opengraph-image.tsx` | Owner avatar, repo name, description, stars, forks, language |
 | `app/u/[login]/opengraph-image.tsx` | Avatar, name, bio, followers, public repos |
+| `app/fields/[field]/opengraph-image.tsx` | Field name and blurb, its top repository and stars |
 
 ```mermaid
 sequenceDiagram
@@ -767,8 +831,8 @@ layout is `src/shared/ui/og-card.tsx`.
 
 `app/sitemap.ts` and `app/robots.ts` are functions that return plain objects. Next turns
 them into `/sitemap.xml` and `/robots.txt` at build time. The sitemap lists the home,
-trending and leaderboard pages; robots allows everything except `/api/`, `/search` and
-`/watchlist`, and points to the sitemap.
+trending, leaderboard and field pages; robots allows everything except `/api/`, `/search`,
+`/find` and `/watchlist`, and points to the sitemap.
 
 ---
 
@@ -857,8 +921,8 @@ flowchart TD
   b --> cache["'use cache' entries, ISR pages<br/>→ Vercel's data cache, refreshed in the background"]
 ```
 
-Environment variables (`GITHUB_TOKEN`, `REVALIDATE_SECRET`, optionally
-`NEXT_PUBLIC_SITE_URL`) are set in the Vercel dashboard, never committed. The README has
+Environment variables (`GITHUB_TOKEN`, `REVALIDATE_SECRET`, `GROQ_API_KEY`, optionally
+`FIND_AI_ENABLED` and `NEXT_PUBLIC_SITE_URL`) are set in the Vercel dashboard, never committed. The README has
 the step-by-step setup.
 
 ---
@@ -872,7 +936,7 @@ in four layers that only import downward ([ADR 0002](adr/0002-feature-folder-lay
 ```mermaid
 flowchart TD
   app["app/<br/>routing files only: page, layout, route, metadata<br/>_components/: Providers, SiteHeader"]
-  features["features/<br/>repo · search · watchlist · trending · leaderboard · user"]
+  features["features/<br/>repo · search · watchlist · trending · leaderboard · fields · find · user"]
   entities["entities/github/<br/>client, cached getters, tags, types, catalogs, RepoCard"]
   shared["shared/<br/>ui · lib · hooks · config (no domain knowledge)"]
   app --> features --> entities --> shared

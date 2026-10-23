@@ -76,3 +76,60 @@ test("unknown repositories show the not-found page", async ({ page }) => {
   await page.goto("/this-owner-does-not-exist-xyz/nope");
   await expect(page.getByRole("heading", { name: "Not found" })).toBeVisible();
 });
+
+test("fields: pick a field and see its ranked repositories", async ({ page }) => {
+  await page.goto("/fields");
+  await page.getByRole("link", { name: /^Frontend/ }).click();
+
+  await expect(page).toHaveURL("/fields/frontend");
+  await expect(page.getByRole("heading", { name: "Top Frontend repositories" })).toBeVisible();
+  await expect(page.locator("main ol li").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Backend", exact: true })).toHaveAttribute(
+    "href",
+    "/fields/backend",
+  );
+});
+
+test("describe it: a plain-language request returns repositories", async ({ page }) => {
+  await page.goto("/find");
+  await page.getByRole("link", { name: "Fast state management for React" }).click();
+
+  await expect(page).toHaveURL(/\/find\?q=Fast\+state\+management\+for\+React/);
+  await expect(page.getByLabel("Describe what you need")).toHaveValue(
+    "Fast state management for React",
+  );
+  // With GROQ_API_KEY: "Best matches"; without it (CI): plain keyword "Results". Up to three
+  // GitHub searches run one after another (plus a model call), so allow more than the default.
+  await expect(page.getByRole("heading", { name: /^(Best matches|Results)$/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("main section a[href^='/']").first()).toBeVisible();
+});
+
+test("describe it: history keeps recent requests and can remove them", async ({ page }) => {
+  const recent = page.getByRole("region", { name: "Recent requests" });
+  // A request is recorded by an effect after hydration, which can come after the
+  // load event on a slow machine (CI). Wait for its chip before navigating on.
+  for (const query of ["Fast state management for React", "A Python tool to scrape websites"]) {
+    await page.goto(`/find?q=${encodeURIComponent(query)}`);
+    await expect(recent.getByRole("link", { name: query })).toBeVisible();
+  }
+  await page.goto("/find");
+
+  await expect(recent.getByRole("link")).toHaveText([
+    "A Python tool to scrape websites",
+    "Fast state management for React",
+  ]);
+
+  await recent
+    .getByRole("button", { name: "Remove “A Python tool to scrape websites” from history" })
+    .click();
+  await expect(recent.getByRole("link")).toHaveText(["Fast state management for React"]);
+
+  await recent.getByRole("button", { name: "Clear all" }).click();
+  await expect(recent).toBeHidden();
+
+  // Survives a reload: it lives in localStorage, not in React state.
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Recent requests" })).toBeHidden();
+});

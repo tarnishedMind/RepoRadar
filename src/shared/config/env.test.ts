@@ -15,4 +15,11 @@ describe("env", () => {
     expect(env.githubToken()).toBeUndefined();
     expect(env.revalidateSecret()).toBeUndefined();
   });
+
+  it("keeps the /find AI switch on unless it is exactly false", () => {
+    vi.stubEnv("FIND_AI_ENABLED", "");
+    expect(env.findAiEnabled()).toBe(true);
+    vi.stubEnv("FIND_AI_ENABLED", "false");
+    expect(env.findAiEnabled()).toBe(false);
+  });
 });

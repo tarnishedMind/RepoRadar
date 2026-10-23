@@ -11,6 +11,7 @@ describe("tags", () => {
     expect(tags.trending()).toBe("trending");
     expect(tags.trending("daily")).toBe("trending:daily");
     expect(tags.leaderboard("rust")).toBe("leaderboard:rust");
+    expect(tags.field("ai-ml")).toBe("field:ai-ml");
   });
 });
 
@@ -21,6 +22,8 @@ describe("parseRevalidateTags", () => {
       tags.trending("weekly"),
       tags.leaderboard(),
       tags.leaderboard("typescript"),
+      tags.field(),
+      tags.field("frontend"),
       tags.repo("vercel", "next.js"),
       tags.user("torvalds"),
     ];
@@ -41,6 +44,7 @@ describe("parseRevalidateTags", () => {
     ["an unknown kind", { tags: ["everything"] }],
     ["an unknown range", { tags: ["trending:yearly"] }],
     ["an unknown language", { tags: ["leaderboard:cobol"] }],
+    ["an unknown field", { tags: ["field:fullstack"] }],
   ])("rejects %s", (_, body) => {
     expect(parseRevalidateTags(body)).toBeNull();
   });
